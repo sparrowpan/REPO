@@ -1,0 +1,29 @@
+# ---- .NET ----
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+project.lock.json
+artifacts/
+
+# ---- Node / Angular ----
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-error.log*
+
+# ---- Test / coverage output ----
+[Tt]est[Rr]esults/
+coverage/
+*.trx
+
+# ---- IDE / OS ----
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- Local tooling ----
+.claude/settings.local.json

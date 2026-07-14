@@ -1,0 +1,25 @@
+/* Global styles */
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Segoe UI', -apple-system, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  background: var(--p-surface-100);
+  color: var(--p-text-color);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: var(--p-primary-color);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
