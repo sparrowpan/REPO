@@ -12,7 +12,8 @@ the task calls for:
 
 - **`spec/code-gen.convention.md`** — full backend + frontend conventions and app-shell gotchas.
   Read before adding or editing a feature.
-- **`spec/features.md`** — as-built notes per implemented feature. Read the section for the one you touch.
+- **`spec/features.md`** — as-built notes per implemented feature (incl. the full **Auth** section).
+  Read the section for the one you touch.
 - **`spec/{schema}/{Table}.md`** + **`spec/feature-spec.template.md`** — per-feature build specs and template.
 - **`spec/custom/{Table}/`** — specs (+ mockups) for **customized** features that break the standard
   list/detail/form triad (e.g. FeaturedPromoItem's weekly board). Read before touching one.
@@ -43,7 +44,7 @@ npm test                                              # CI: npx ng test --watch=
   (`Server=.\SQLEXPRESS;Database=CMS;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False`).
 - CORS allows any loopback origin (dev). API listens on port 5000 via `launchSettings.json`.
 
-## Conventions (summary — full detail + gotchas in `spec/code-gen.convention.md`)
+## Conventions (full detail + gotchas in `spec/code-gen.convention.md` — read before adding/editing a feature)
 
 **Backend** — Dapper only, async; connections via `IDbConnectionFactory` (`Infrastructure/`), `RTRIM()` nchar,
 `DateOnly`/`TimeOnly` handlers in `Program.cs`. Per table: `{Table}.cs` / `{Table}Request.cs` / `{Table}Query.cs`
@@ -53,20 +54,30 @@ delete-then-reinsert in a transaction. Tests: `CmsApiFactory` swaps the repo for
 
 **Frontend** — standalone + signals; lazy `loadComponent` routes; providers in `app.config.ts`; path aliases
 `@env`/`@core`/`@features`. Feature folders `features/{plural}/{table}-list|-detail|-form/`. List = `p-table` +
-filter `p-drawer` (sessionStorage-persisted); form = Reactive Forms + `forkJoin` lookups. Gotchas covered in the
-reference: opt-in list inline edit, sticky form toolbar, the app-shell scroll model (**window doesn't scroll**),
-and Ultima sidebar theming.
+filter `p-drawer` (sessionStorage-persisted); form = Reactive Forms + `forkJoin` lookups. Gotchas (opt-in list
+inline edit, sticky form toolbar, window-doesn't-scroll app shell, Ultima sidebar theming) are in the reference.
+
+**Auth — applies to every feature; full detail in `spec/features.md` → Auth.** The rules you must honor when
+adding *any* feature:
+- Backend: a global `RequireAuthenticatedUser` fallback protects **every controller by default** — do nothing
+  to opt in; add `[AllowAnonymous]` only per-*action* for genuinely public endpoints.
+- Frontend: **every new feature route needs `canActivate: [authGuard]`** (`@core/guards/auth.guard`); only
+  `login` is public. The Bearer interceptor (+401→`/login`) is automatic — services need no auth code. Read
+  profile/roles from `AuthService` (session storage), never a new API call; gate Admin UI on `auth.hasRole('Admin')`.
+- Backend tests hit protected endpoints via `CmsApiFactory.CreateAuthenticatedClient()` (pass role names for
+  role-gated cases), not `CreateClient()`.
+- Password hashing/complexity, act-on-your-own-record endpoints (id from JWT, never the body), and the
+  no-hash-over-the-wire rule are documented in the Auth section of `spec/features.md`.
 
 ## Implemented features
 
-As-built notes live in **`spec/features.md`** — read the section for the feature you're touching.
-**AppRole (角色)** is the reference feature: copy its structure for new tables. When you finish a feature,
-append its section there and add a row below. Most features follow the list/detail/form triad; **customized**
-ones (e.g. **FeaturedPromoItem**, a weekly board with a non-standard `POST /api/{plural}/move`) don't — their
-specs live under `spec/custom/`.
+As-built notes: **`spec/features.md`** — read the section for the feature you touch. **AppRole** is the reference
+feature (copy its structure for new tables). Customized features (e.g. **FeaturedPromoItem**) break the triad;
+their specs live in `spec/custom/`. When you finish a feature, append its section to `features.md` and add a row below.
 
 | Feature | 中文 | Routes | Schema | Notes |
 |---------|------|--------|--------|-------|
-| AppRole | 角色 | `/app-roles` | `database/auth.sql` | Reference feature; string PK `RoleId`; n-n with AppUser |
-| AppUser | 使用者 | `/app-users` | `database/auth.sql` | String PK `UserId`; n-n with AppRole; backend-only `PasswordHash` + reset endpoint |
-| FeaturedPromoItem | 上稿作業 | `/featured-promo-items` | `database/promotion.sql` | Custom weekly **board** (center tabs × Mon–Sun × 3 slots), inline edit, PromoCode lookup, slot `+`/`−` move (`/move`) |
+| AppRole | 角色 | `/app-roles` | `auth.sql` | **Reference feature** — copy for new tables. String PK `RoleId`; n-n with AppUser |
+| AppUser | 使用者 | `/app-users` | `auth.sql` | String PK `UserId`; n-n with AppRole; backend-only `PasswordHash`; Admin-only reset-to-default (`POST …/reset-password`) |
+| FeaturedPromoItem | 上稿作業 | `/featured-promo-items` | `promotion.sql` | **Custom** weekly board (center × Mon–Sun × 3 slots), not list/detail/form; slot `/move`; spec in `spec/custom/` |
+| Auth | 登入 | `/login`, `/profile`, `POST /api/Auth/*` | `auth.sql` | Login + JWT authorization end-to-end; My Profile + Change Password |
