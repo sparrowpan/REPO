@@ -1,0 +1,102 @@
+<p-toast />
+
+<div class="page-card page-header">
+  <div class="page-header__title">
+    <h2>檢視課程</h2>
+    @if (course(); as c) {
+      <span class="page-header__subtitle">{{ c.title }}</span>
+    }
+  </div>
+  <div class="page-header__actions">
+    <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="back()">
+      <i class="pi pi-arrow-left"></i>&nbsp;返回
+    </button>
+    <button pButton type="button" class="p-button-success" (click)="edit()" [disabled]="!course()">
+      <i class="pi pi-pencil"></i>&nbsp;編輯
+    </button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="page-card">載入中…</div>
+} @else if (course(); as c) {
+  <div class="page-card">
+    <h3 class="section-title">基本資料</h3>
+    <dl class="detail-grid">
+      <div class="detail-item"><dt>主代碼</dt><dd>{{ c.pkid }}</dd></div>
+      <div class="detail-item"><dt>顯示順序</dt><dd>{{ c.displayOrder }}</dd></div>
+      <div class="detail-item"><dt>簡介代碼</dt><dd>{{ c.courseId }}</dd></div>
+      <div class="detail-item"><dt>科目代碼</dt><dd>{{ c.prodCourseId }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>課程名稱</dt><dd>{{ c.title }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>正式名稱</dt><dd>{{ c.officialTitle || '—' }}</dd></div>
+      <div class="detail-item"><dt>網址代稱</dt><dd>{{ c.friendlyUrl }}</dd></div>
+      <div class="detail-item"><dt>允許重聽</dt><dd>
+        <p-tag [value]="c.canRepeat ? '是' : '否'" [severity]="c.canRepeat ? 'success' : 'secondary'" />
+      </dd></div>
+      <div class="detail-item"><dt>原廠</dt><dd>
+        @if (c.partner) {
+          <a [routerLink]="['/partners', c.partnerPkid]" class="link">{{ c.partner.name }}</a>
+        } @else { — }
+      </dd></div>
+      <div class="detail-item"><dt>課程群組</dt><dd>
+        @if (c.courseGroup) {
+          <a [routerLink]="['/course-groups', c.courseGroupPkid]" class="link">{{ c.courseGroup.description }}</a>
+        } @else { — }
+      </dd></div>
+      <div class="detail-item"><dt>上架狀態</dt><dd>
+        @if (c.publishStatus) {
+          <a [routerLink]="['/publish-statuses', c.publishStatusPkid]" class="link">{{ c.publishStatus.description }}</a>
+        } @else { — }
+      </dd></div>
+    </dl>
+  </div>
+
+  <div class="page-card">
+    <h3 class="section-title">排程與定價</h3>
+    <dl class="detail-grid">
+      <div class="detail-item"><dt>上架日期</dt><dd>{{ c.scheduleOn }}</dd></div>
+      <div class="detail-item"><dt>下架日期</dt><dd>{{ c.scheduleOff }}</dd></div>
+      <div class="detail-item"><dt>時數</dt><dd>{{ c.hour }}</dd></div>
+      <div class="detail-item"><dt>定價</dt><dd>{{ c.listPrice }}</dd></div>
+      <div class="detail-item"><dt>點數</dt><dd>{{ c.learningCredit }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="page-card">
+    <h3 class="section-title">分類</h3>
+    <dl class="detail-grid">
+      <div class="detail-item detail-item--wide"><dt>職務類別</dt><dd>
+        @if (c.jobCategories.length) {
+          <div class="chips">
+            @for (j of c.jobCategories; track j.pkid) {
+              <p-tag [value]="j.description" severity="info" />
+            }
+          </div>
+        } @else { — }
+      </dd></div>
+      <div class="detail-item detail-item--wide"><dt>對應認證</dt><dd>
+        @if (c.certifications.length) {
+          <div class="chips">
+            @for (ct of c.certifications; track ct.pkid) {
+              <p-tag [value]="ct.title" severity="warn" />
+            }
+          </div>
+        } @else { — }
+      </dd></div>
+    </dl>
+  </div>
+
+  <div class="page-card">
+    <h3 class="section-title">課程內容</h3>
+    <dl class="detail-grid">
+      <div class="detail-item detail-item--wide"><dt>教材</dt><dd class="pre">{{ c.material || '—' }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>課程目標</dt><dd class="pre">{{ c.objective || '—' }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>適合對象</dt><dd class="pre">{{ c.target || '—' }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>先修條件</dt><dd class="pre">{{ c.prerequisites || '—' }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>課程大綱</dt><dd class="pre">{{ c.outline || '—' }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>對應認證/考試</dt><dd class="pre">{{ c.towardCertOrExam || '—' }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>備註</dt><dd class="pre">{{ c.note || '—' }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>其他資訊</dt><dd class="pre">{{ c.otherInfo || '—' }}</dd></div>
+    </dl>
+  </div>
+}

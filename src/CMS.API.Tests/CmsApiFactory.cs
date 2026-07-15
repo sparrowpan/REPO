@@ -20,6 +20,21 @@ public sealed class CmsApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IAppRoleRepository>();
             services.AddSingleton<IAppRoleRepository, FakeAppRoleRepository>();
+
+            services.RemoveAll<IAppUserRepository>();
+            services.AddSingleton<IAppUserRepository, FakeAppUserRepository>();
+
+            services.RemoveAll<IPublishStatusRepository>();
+            services.AddSingleton<IPublishStatusRepository, FakePublishStatusRepository>();
+
+            services.RemoveAll<IPartnerRepository>();
+            services.AddSingleton<IPartnerRepository, FakePartnerRepository>();
+
+            services.RemoveAll<ICourseGroupRepository>();
+            services.AddSingleton<ICourseGroupRepository, FakeCourseGroupRepository>();
+
+            services.RemoveAll<ICourseRepository>();
+            services.AddSingleton<ICourseRepository, FakeCourseRepository>();
         });
     }
 }

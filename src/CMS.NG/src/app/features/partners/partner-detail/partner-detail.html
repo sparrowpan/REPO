@@ -1,0 +1,35 @@
+<p-toast />
+
+<div class="page-card page-header">
+  <div class="page-header__title">
+    <h2>檢視廠商</h2>
+    @if (partner(); as p) {
+      <span class="page-header__subtitle">{{ p.name }}</span>
+    }
+  </div>
+  <div class="page-header__actions">
+    <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="back()">
+      <i class="pi pi-arrow-left"></i>&nbsp;返回
+    </button>
+    <button pButton type="button" class="p-button-success" (click)="edit()" [disabled]="!partner()">
+      <i class="pi pi-pencil"></i>&nbsp;編輯
+    </button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="page-card">載入中…</div>
+} @else if (partner(); as p) {
+  <div class="page-card">
+    <h3 class="section-title">廠商資料</h3>
+    <dl class="detail-grid">
+      <div class="detail-item"><dt>主代碼</dt><dd>{{ p.pkid }}</dd></div>
+      <div class="detail-item"><dt>廠商名稱</dt><dd>{{ p.name }}</dd></div>
+      <div class="detail-item"><dt>廠商代碼</dt><dd>{{ p.appKey }}</dd></div>
+      <div class="detail-item"><dt>顯示順序</dt><dd>{{ p.displayOrder }}</dd></div>
+      <div class="detail-item detail-item--wide"><dt>選單顯示名稱</dt><dd>{{ p.nameOnPartnerMenu }}</dd></div>
+      <div class="detail-item"><dt>課程頁顯示名稱</dt><dd>{{ p.nameOnCourseDetailPage }}</dd></div>
+      <div class="detail-item"><dt>圖檔名稱</dt><dd>{{ p.imageFilename || '—' }}</dd></div>
+    </dl>
+  </div>
+}

@@ -33,7 +33,15 @@ export class App {
       title: '選單 MENU',
       groups: [
         { label: '首頁管理 Home', icon: 'pi pi-home', children: [] },
-        { label: '課程管理 Course', icon: 'pi pi-folder', children: [] },
+        {
+          label: '課程管理 Course',
+          icon: 'pi pi-folder',
+          children: [
+            { label: '課程 Course', route: '/courses', icon: 'pi pi-book' },
+            { label: '合作廠商 Partner', route: '/partners', icon: 'pi pi-building' },
+            { label: '課程群組 CourseGroup', route: '/course-groups', icon: 'pi pi-sitemap' },
+          ],
+        },
         { label: '說明會 Seminar', icon: 'pi pi-comments', children: [] },
         { label: '活動管理 Promotion', icon: 'pi pi-megaphone', children: [] },
         { label: '線上報名 Forms', icon: 'pi pi-pencil', children: [] },
@@ -50,6 +58,7 @@ export class App {
           children: [
             { label: '角色 AppRole', route: '/app-roles', icon: 'pi pi-id-card' },
             { label: '使用者 AppUser', route: '/app-users', icon: 'pi pi-user' },
+            { label: '發布狀態 PublishStatus', route: '/publish-statuses', icon: 'pi pi-flag' },
           ],
         },
       ],

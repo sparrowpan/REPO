@@ -1,0 +1,102 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="page-card page-header">
+  <div class="page-header__title">
+    <h2>使用者 AppUser</h2>
+    <span class="page-header__subtitle">系統登入帳號</span>
+  </div>
+  <div class="page-header__actions">
+    <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="filterVisible.set(true)">
+      <i class="pi pi-filter"></i>&nbsp;搜尋條件
+    </button>
+    <button pButton type="button" class="p-button-success" (click)="add()">
+      <i class="pi pi-plus"></i>&nbsp;新增
+    </button>
+  </div>
+</div>
+
+<div class="page-card">
+  <p-table
+    [value]="users()"
+    [loading]="loading()"
+    [paginator]="true"
+    [rows]="rows"
+    [first]="first"
+    [rowsPerPageOptions]="[10, 20, 50]"
+    [sortField]="sortField"
+    [sortOrder]="sortOrder"
+    (onSort)="onSort($event)"
+    (onPage)="onPage($event)"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="{first}–{last} 筆，共 {totalRecords} 筆"
+    dataKey="userId"
+    styleClass="p-datatable-striped p-datatable-gridlines"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="pkid" style="width: 6rem">主代碼 <p-sortIcon field="pkid" /></th>
+        <th pSortableColumn="userId">使用者代碼 <p-sortIcon field="userId" /></th>
+        <th pSortableColumn="userName">使用者名稱 <p-sortIcon field="userName" /></th>
+        <th pSortableColumn="isActive" style="width: 7rem">啟用 <p-sortIcon field="isActive" /></th>
+        <th pSortableColumn="roleCount" style="width: 7rem">角色數 <p-sortIcon field="roleCount" /></th>
+        <th pSortableColumn="passwordUpdatedTime" style="width: 12rem">密碼更新時間 <p-sortIcon field="passwordUpdatedTime" /></th>
+        <th style="width: 10rem">操作</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-user>
+      <tr>
+        <td>{{ user.pkid }}</td>
+        <td><a [routerLink]="['/app-users', user.userId]" class="link">{{ user.userId }}</a></td>
+        <td>{{ user.userName }}</td>
+        <td>
+          @if (user.isActive) {
+            <p-tag value="啟用" severity="success" />
+          } @else {
+            <p-tag value="停用" severity="danger" />
+          }
+        </td>
+        <td>{{ user.roleCount }}</td>
+        <td>{{ user.passwordUpdatedTime ? (user.passwordUpdatedTime + 'Z' | date: 'yyyy-MM-dd HH:mm') : '—' }}</td>
+        <td>
+          <div class="row-actions">
+            <button pButton type="button" class="p-button-text p-button-rounded" pTooltip="檢視"
+                    (click)="view(user)"><i class="pi pi-eye"></i></button>
+            <button pButton type="button" class="p-button-text p-button-rounded" pTooltip="編輯"
+                    (click)="edit(user)"><i class="pi pi-pencil"></i></button>
+            <button pButton type="button" class="p-button-text p-button-rounded p-button-danger" pTooltip="刪除"
+                    (click)="confirmDelete(user)"><i class="pi pi-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="7" class="empty">查無資料</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<!-- Filter drawer -->
+<p-drawer [visible]="filterVisible()" (visibleChange)="filterVisible.set($event)" header="搜尋條件" position="right" [style]="{ width: '360px' }">
+  <div class="filter-form">
+    <div class="filter-field">
+      <label for="keyword">關鍵字</label>
+      <input pInputText id="keyword" [(ngModel)]="filters.keyword" placeholder="使用者代碼／名稱" />
+    </div>
+    <div class="filter-field">
+      <label for="isActive">啟用狀態</label>
+      <p-select inputId="isActive" [options]="activeOptions" [(ngModel)]="filters.isActive"
+                optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full" />
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <div class="filter-footer">
+      <button pButton type="button" class="p-button-text" (click)="clearFilters()">清除</button>
+      <button pButton type="button" (click)="applyFilters()">套用</button>
+    </div>
+  </ng-template>
+</p-drawer>

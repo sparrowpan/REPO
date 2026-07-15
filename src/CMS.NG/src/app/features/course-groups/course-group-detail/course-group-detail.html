@@ -1,0 +1,30 @@
+<p-toast />
+
+<div class="page-card page-header">
+  <div class="page-header__title">
+    <h2>檢視課程群組</h2>
+    @if (courseGroup(); as g) {
+      <span class="page-header__subtitle">{{ g.description }}</span>
+    }
+  </div>
+  <div class="page-header__actions">
+    <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="back()">
+      <i class="pi pi-arrow-left"></i>&nbsp;返回
+    </button>
+    <button pButton type="button" class="p-button-success" (click)="edit()" [disabled]="!courseGroup()">
+      <i class="pi pi-pencil"></i>&nbsp;編輯
+    </button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="page-card">載入中…</div>
+} @else if (courseGroup(); as g) {
+  <div class="page-card">
+    <h3 class="section-title">課程群組資料</h3>
+    <dl class="detail-grid">
+      <div class="detail-item"><dt>主代碼</dt><dd>{{ g.pkid }}</dd></div>
+      <div class="detail-item"><dt>群組名稱</dt><dd>{{ g.description }}</dd></div>
+    </dl>
+  </div>
+}

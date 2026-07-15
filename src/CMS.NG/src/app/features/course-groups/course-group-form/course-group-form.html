@@ -1,0 +1,33 @@
+<p-toast />
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <div class="page-card page-header">
+    <div class="page-header__title">
+      <h2>{{ isEdit() ? '編輯課程群組' : '新增課程群組' }}</h2>
+    </div>
+    <div class="page-header__actions">
+      <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="cancel()">
+        <i class="pi pi-times"></i>&nbsp;取消
+      </button>
+      <button pButton type="submit" class="p-button-success" [disabled]="saving()">
+        <i class="pi pi-check"></i>&nbsp;儲存
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="page-card">載入中…</div>
+  } @else {
+    <div class="page-card">
+      <h3 class="section-title">課程群組資料</h3>
+
+      <div class="form-field">
+        <label for="description">群組名稱 <span class="req">*</span></label>
+        <input pInputText id="description" formControlName="description" maxlength="100" />
+        @if (form.controls.description.invalid && form.controls.description.touched) {
+          <small class="err">群組名稱為必填。</small>
+        }
+      </div>
+    </div>
+  }
+</form>

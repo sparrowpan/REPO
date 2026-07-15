@@ -1,0 +1,110 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="page-card page-header">
+  <div class="page-header__title">
+    <h2>發布狀態 PublishStatus</h2>
+    <span class="page-header__subtitle">內容發布狀態</span>
+  </div>
+  <div class="page-header__actions">
+    <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="filterVisible.set(true)">
+      <i class="pi pi-filter"></i>&nbsp;搜尋條件
+    </button>
+    <button pButton type="button" class="p-button-success" (click)="add()">
+      <i class="pi pi-plus"></i>&nbsp;新增
+    </button>
+  </div>
+</div>
+
+<div class="page-card">
+  <p-table
+    [value]="statuses()"
+    [loading]="loading()"
+    [paginator]="true"
+    [rows]="rows"
+    [first]="first"
+    [rowsPerPageOptions]="[10, 20, 50]"
+    [sortField]="sortField"
+    [sortOrder]="sortOrder"
+    (onSort)="onSort($event)"
+    (onPage)="onPage($event)"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="{first}–{last} 筆，共 {totalRecords} 筆"
+    dataKey="pkid"
+    styleClass="p-datatable-striped p-datatable-gridlines"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="pkid" style="width: 7rem">主代碼 <p-sortIcon field="pkid" /></th>
+        <th pSortableColumn="description">狀態說明 <p-sortIcon field="description" /></th>
+        <th pSortableColumn="isDraft" style="width: 8rem">草稿 <p-sortIcon field="isDraft" /></th>
+        <th pSortableColumn="isPublished" style="width: 8rem">已發布 <p-sortIcon field="isPublished" /></th>
+        <th pSortableColumn="isDiscontinued" style="width: 8rem">已停用 <p-sortIcon field="isDiscontinued" /></th>
+        <th style="width: 10rem">操作</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-status>
+      <tr>
+        <td>{{ status.pkid }}</td>
+        <td><a [routerLink]="['/publish-statuses', status.pkid]" class="link">{{ status.description }}</a></td>
+        <td>
+          @if (status.isDraft) { <p-tag value="是" severity="info" /> } @else { <span class="muted">否</span> }
+        </td>
+        <td>
+          @if (status.isPublished) { <p-tag value="是" severity="success" /> } @else { <span class="muted">否</span> }
+        </td>
+        <td>
+          @if (status.isDiscontinued) { <p-tag value="是" severity="danger" /> } @else { <span class="muted">否</span> }
+        </td>
+        <td>
+          <div class="row-actions">
+            <button pButton type="button" class="p-button-text p-button-rounded" pTooltip="檢視"
+                    (click)="view(status)"><i class="pi pi-eye"></i></button>
+            <button pButton type="button" class="p-button-text p-button-rounded" pTooltip="編輯"
+                    (click)="edit(status)"><i class="pi pi-pencil"></i></button>
+            <button pButton type="button" class="p-button-text p-button-rounded p-button-danger" pTooltip="刪除"
+                    (click)="confirmDelete(status)"><i class="pi pi-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="6" class="empty">查無資料</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<!-- Filter drawer -->
+<p-drawer [visible]="filterVisible()" (visibleChange)="filterVisible.set($event)" header="搜尋條件" position="right" [style]="{ width: '360px' }">
+  <div class="filter-form">
+    <div class="filter-field">
+      <label for="keyword">關鍵字</label>
+      <input pInputText id="keyword" [(ngModel)]="filters.keyword" placeholder="狀態說明" />
+    </div>
+    <div class="filter-field">
+      <label for="isDraft">草稿</label>
+      <p-select inputId="isDraft" [(ngModel)]="filters.isDraft" [options]="tristateOptions"
+                optionLabel="label" optionValue="value" appendTo="body" />
+    </div>
+    <div class="filter-field">
+      <label for="isPublished">已發布</label>
+      <p-select inputId="isPublished" [(ngModel)]="filters.isPublished" [options]="tristateOptions"
+                optionLabel="label" optionValue="value" appendTo="body" />
+    </div>
+    <div class="filter-field">
+      <label for="isDiscontinued">已停用</label>
+      <p-select inputId="isDiscontinued" [(ngModel)]="filters.isDiscontinued" [options]="tristateOptions"
+                optionLabel="label" optionValue="value" appendTo="body" />
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <div class="filter-footer">
+      <button pButton type="button" class="p-button-text" (click)="clearFilters()">清除</button>
+      <button pButton type="button" (click)="applyFilters()">套用</button>
+    </div>
+  </ng-template>
+</p-drawer>
