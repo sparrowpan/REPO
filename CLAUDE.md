@@ -7,9 +7,14 @@ Guidance for working in this repository.
 Full-stack CMS generated from SQL Server schema. Backend is a .NET 9 Web API (Dapper, **no EF**);
 frontend is Angular 20 (standalone components) with PrimeNG. Chinese/English bilingual UI.
 
+This file holds the **always-needed** core (layout, run/test, conventions). Deeper detail lives in
+reference files — read them only when the task calls for it:
+
+- **`spec/code-gen.convention.md`** — code-generation conventions. Read before adding a feature.
+- **`spec/features.md`** — as-built notes for features already implemented (AppRole, AppUser, …).
+  Read the relevant section when a task touches that feature.
+- **`spec/{schema}/{Table}.md`** + **`spec/feature-spec.template.md`** — per-feature build specs and template.
 - **`database/*.sql`** — source-of-truth SQL Server schema (`auth`, `admin`, `course`, `promotion`).
-- **`spec/code-gen.convention.md`** — the code-generation conventions. Read this before adding a feature.
-- **`spec/*.spec.md`**, **`spec/feature-spec.template.md`** — per-feature build specs and template.
 - **`spec/ui-sample-*.png`** — UI style references only (not literal content).
 - **`src/`** — application code (see below).
 
@@ -43,46 +48,40 @@ npm test                       # CI: npx ng test --watch=false --browsers=Chrome
 
 ## Backend conventions
 
-- **Dapper only, async.** Connections come from `IDbConnectionFactory` (`Infrastructure/`).
-  `DateOnly`/`TimeOnly` handlers are registered in `Program.cs`; `nchar` columns must be `RTRIM()`ed in SQL.
-- **Per table**: `{Table}.cs` (response, incl. nav objects / subquery counts), `{Table}Request.cs`
-  (write DTO, FK pkids + n-n as `List<>`), `{Table}Query.cs` (search DTO). Repository interface + impl
-  in `Repositories/`; register in `Program.cs` DI.
-- **n-n**: delete-then-reinsert inside a transaction on create/update; read via a second query on the same connection.
-- **Routes**: `/api/{tablePlural}` — `GET` (all), `POST /query` (filter), `GET /{id}`, `POST`, `PUT`
-  (pkid/business-key in body, no route param), `DELETE /{id}`. String PKs use `{id}` with no `:int` constraint.
-- **Lookups**: `GET /api/lookups/{plural}` returns slim option lists for FK / n-n selects.
-- **Tests**: swap the repository for an in-memory fake via `CmsApiFactory` (`WebApplicationFactory<Program>`);
-  `Program.cs` exposes `public partial class Program` so the factory can boot it. No SQL Server required.
+- **Dapper only, async.** Connections via `IDbConnectionFactory` (`Infrastructure/`). `DateOnly`/`TimeOnly`
+  handlers registered in `Program.cs`; `RTRIM()` `nchar` columns in SQL.
+- **Per table**: `{Table}.cs` (response + nav objects / subquery counts), `{Table}Request.cs` (write DTO —
+  FK pkids + n-n as `List<>`), `{Table}Query.cs` (search DTO). Repo interface + impl in `Repositories/`, DI in `Program.cs`.
+- **n-n**: delete-then-reinsert in a transaction on create/update; read via a second query on the same connection.
+- **Routes** `/api/{tablePlural}`: `GET` (all), `POST /query` (filter), `GET /{id}`, `POST`, `PUT`
+  (pkid/business-key in body, no route param), `DELETE /{id}`. String PKs use `{id}` (no `:int`).
+- **Lookups**: `GET /api/lookups/{plural}` → slim option lists for FK / n-n selects.
+- **Tests**: `CmsApiFactory` (`WebApplicationFactory<Program>`) swaps the repo for an in-memory fake; no
+  SQL Server needed (`Program.cs` exposes `public partial class Program`).
 
 ## Frontend conventions
 
-- Standalone components, signals. Config in `app.config.ts` (`provideRouter`, `provideHttpClient(withFetch())`,
-  `provideAnimationsAsync`, `providePrimeNG` with Aura preset). Routes are lazy `loadComponent`.
-- **Path shorthands** (`tsconfig.json`): `@env/*` → `src/environments`, `@core/*` → `src/app/core`,
-  `@features/*` → `src/app/features`.
-- **Environments**: `environment.ts` (prod) / `environment.development.ts` (dev), swapped via
-  `fileReplacements` in `angular.json`. `apiBaseUrl` is absolute — **no dev proxy**.
+- Standalone components + signals; lazy `loadComponent` routes. `app.config.ts`: `provideRouter`,
+  `provideHttpClient(withFetch())`, `provideAnimationsAsync`, `providePrimeNG` (Aura preset).
+- **Path shorthands** (`tsconfig.json`): `@env/*`, `@core/*` → `src/app/core`, `@features/*` → `src/app/features`.
+- **Environments**: `environment.ts` (prod) / `.development.ts` (dev), swapped by `fileReplacements` in
+  `angular.json`. `apiBaseUrl` absolute — **no dev proxy**.
 - **Feature folders**: `features/{table-plural}/{table}-list|-detail|-form/`.
-- **List page**: `p-table` (sortable/paginated), filter `p-drawer`; persist to sessionStorage keys
-  `{table}-list-filters` / `-sort` / `-page`. `p-select`/`p-multiselect` in drawer use `appendTo="body"`.
-- **Form page**: Reactive Forms, `forkJoin` for parallel lookups on init; `p-multiselect` for n-n
-  (`[maxSelectedLabels]="9999"`, chips wrapped via `::ng-deep`); immutable business keys disabled in edit mode.
-- **Sidebar**: add nav entries in `app.ts` (`navSections` → groups → children) and they render in
-  `app.html`. Shell style follows the PrimeNG **Ultima** template (https://ultima.primeng.org):
-  light/white topbar (hamburger + logo + action icons) and light sidebar with uppercase gray section
-  titles, rounded menu items, chevron on expandable groups, and a primary-tinted rounded pill for the
-  active item. Styling uses theme tokens (`--p-surface-*`, `--p-highlight-*`, `--p-primary-*`) in `app.scss`.
+- **List page**: `p-table` (sortable/paginated) + filter `p-drawer`; persist to sessionStorage
+  `{table}-list-filters`/`-sort`/`-page`. Drawer `p-select`/`p-multiselect` use `appendTo="body"`.
+- **Form page**: Reactive Forms, `forkJoin` for parallel lookups on init; n-n via `p-multiselect`
+  (`[maxSelectedLabels]="9999"`, chips wrapped via `::ng-deep`); immutable business keys disabled in edit.
+- **Sidebar**: nav entries in `app.ts` (`navSections` → groups → children), rendered by `app.html`. Shell
+  follows PrimeNG **Ultima** (https://ultima.primeng.org): light topbar + sidebar, uppercase gray section
+  titles, rounded items, primary-tinted pill for active. Theme tokens (`--p-surface/highlight/primary-*`) in `app.scss`.
 
-## Reference feature: AppRole (角色)
+## Implemented features
 
-First implemented feature — copy its structure for new tables. Schema: `database/auth.sql`.
+As-built notes live in **`spec/features.md`** — read the section for the feature you're touching.
+**AppRole (角色)** is the reference feature: copy its structure for new tables. When you finish a
+feature, append its section there and add a row below.
 
-- `AppRole` PK is the string `RoleId` (clustered key; `pkid` is a surrogate IDENTITY shown as 主代碼).
-  `RoleId` is entered on add, immutable on edit, and is the route id (`encodeURIComponent`).
-- n-n `AppRole ↔ AppUser` via `AppUserRole` (keyed on `UserId`/`RoleId`). List shows `userCount`
-  (subquery); detail/form load the user select from `GET /api/lookups/appusers` (label `UserName (UserId)`).
-- Sidebar: **系統管理 Admin → 角色 AppRole** (`/app-roles`).
-- Backend: `Controllers/AppRolesController.cs`, `Repositories/AppRoleRepository.cs`, `Models/AppRole*.cs`.
-  Frontend: `features/app-roles/*`, `core/services/app-role.service.ts`, `core/services/lookup.service.ts`.
-- Tests: `CMS.API.Tests/AppRolesControllerTests.cs` (13); `app-role-*.spec.ts` + `app-role.service.spec.ts` (Angular).
+| Feature | 中文 | Routes | Schema | Notes |
+|---------|------|--------|--------|-------|
+| AppRole | 角色 | `/app-roles` | `database/auth.sql` | Reference feature; string PK `RoleId`; n-n with AppUser |
+| AppUser | 使用者 | `/app-users` | `database/auth.sql` | String PK `UserId`; n-n with AppRole; backend-only `PasswordHash` + reset endpoint |
