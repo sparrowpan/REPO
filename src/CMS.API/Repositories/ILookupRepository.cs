@@ -11,4 +11,6 @@ public interface ILookupRepository
     Task<IReadOnlyList<CourseGroupLookup>> GetCourseGroupsAsync(CancellationToken ct = default);
     Task<IReadOnlyList<JobCategoryLookup>> GetJobCategoriesAsync(CancellationToken ct = default);
     Task<IReadOnlyList<CertificationLookup>> GetCertificationsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<TrainingCenterLookup>> GetTrainingCentersAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<PromotionLookup>> GetPromotionsAsync(CancellationToken ct = default);
 }

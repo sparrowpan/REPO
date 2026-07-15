@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -12,6 +12,7 @@ import { AppUser } from '@core/models/app-user.model';
 import { AppRoleLookup } from '@core/models/app-role-lookup.model';
 import { AppUserService } from '@core/services/app-user.service';
 import { LookupService } from '@core/services/lookup.service';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-user-detail',
@@ -27,10 +28,14 @@ export class AppUserDetail implements OnInit {
   private readonly lookups = inject(LookupService);
   private readonly confirmation = inject(ConfirmationService);
   private readonly messages = inject(MessageService);
+  private readonly auth = inject(AuthService);
 
   protected readonly user = signal<AppUser | null>(null);
   protected readonly roleLabels = signal<string[]>([]);
   protected readonly loading = signal(true);
+
+  /** Whether the signed-in user may reset passwords — mirrors the Admin gate the API enforces. */
+  protected readonly isAdmin = computed(() => this.auth.hasRole('Admin'));
 
   ngOnInit(): void {
     const userId = this.route.snapshot.paramMap.get('id')!;
@@ -57,7 +62,7 @@ export class AppUserDetail implements OnInit {
 
   confirmResetPassword(): void {
     const user = this.user();
-    if (!user) return;
+    if (!user || !this.isAdmin()) return;
     this.confirmation.confirm({
       header: '重設密碼',
       message: `確定要將使用者「${user.userId}」的密碼重設為預設密碼？`,

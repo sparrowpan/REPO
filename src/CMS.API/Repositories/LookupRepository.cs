@@ -84,4 +84,26 @@ public sealed class LookupRepository(IDbConnectionFactory connectionFactory) : I
             """, cancellationToken: ct));
         return rows.ToList();
     }
+
+    public async Task<IReadOnlyList<TrainingCenterLookup>> GetTrainingCentersAsync(CancellationToken ct = default)
+    {
+        using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
+        var rows = await conn.QueryAsync<TrainingCenterLookup>(new CommandDefinition("""
+            SELECT pkid, Name
+            FROM TrainingCenter
+            ORDER BY DisplayOrder
+            """, cancellationToken: ct));
+        return rows.ToList();
+    }
+
+    public async Task<IReadOnlyList<PromotionLookup>> GetPromotionsAsync(CancellationToken ct = default)
+    {
+        using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
+        var rows = await conn.QueryAsync<PromotionLookup>(new CommandDefinition("""
+            SELECT pkid, PromoCode, Topic, Description
+            FROM Promotion2
+            ORDER BY PromoCode
+            """, cancellationToken: ct));
+        return rows.ToList();
+    }
 }

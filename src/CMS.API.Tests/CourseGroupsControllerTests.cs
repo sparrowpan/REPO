@@ -14,7 +14,7 @@ public class CourseGroupsControllerTests
     private static (CmsApiFactory factory, HttpClient client) CreateClient()
     {
         var factory = new CmsApiFactory();
-        return (factory, factory.CreateClient());
+        return (factory, factory.CreateAuthenticatedClient());
     }
 
     // --- List / filter ------------------------------------------------------

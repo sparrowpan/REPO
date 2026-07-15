@@ -1,5 +1,6 @@
 using CMS.API.Models;
 using CMS.API.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CMS.API.Controllers;
@@ -53,7 +54,12 @@ public class AppUsersController(IAppUserRepository repository) : ControllerBase
         return deleted ? NoContent() : NotFound();
     }
 
-    /// <summary>Reset a user's password to the SysConfig default.</summary>
+    /// <summary>
+    /// Reset a user's password to the SysConfig default. Restricted to the <c>Admin</c> role
+    /// (enforced server-side via the role claim); a non-Admin caller gets 403 Forbidden. No
+    /// password or hash is returned — success is a bare 204.
+    /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("{id}/reset-password")]
     public async Task<IActionResult> ResetPassword(string id, CancellationToken ct)
     {

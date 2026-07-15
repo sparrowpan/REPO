@@ -1,4 +1,5 @@
 <p-toast />
+<p-confirmDialog />
 
 <form [formGroup]="form" (ngSubmit)="save()">
   <div class="page-card page-header">
@@ -9,6 +10,16 @@
       <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="cancel()">
         <i class="pi pi-times"></i>&nbsp;取消
       </button>
+      @if (isEdit() && isAdmin()) {
+        <button
+          pButton
+          type="button"
+          class="p-button-outlined p-button-warn"
+          (click)="confirmResetPassword()"
+        >
+          <i class="pi pi-key"></i>&nbsp;重設密碼為預設值
+        </button>
+      }
       <button pButton type="submit" class="p-button-success" [disabled]="saving()">
         <i class="pi pi-check"></i>&nbsp;儲存
       </button>

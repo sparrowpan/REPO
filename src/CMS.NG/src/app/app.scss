@@ -88,6 +88,37 @@ $sidebar-collapsed: 74px;
   background: var(--p-surface-100, #f1f5f9);
 }
 
+.topbar__user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--p-text-color, #334155);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.topbar__user:hover {
+  background: var(--p-surface-100, #f1f5f9);
+}
+
+.topbar__user-name {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar__user-caret {
+  font-size: 0.75rem;
+  color: var(--p-text-muted-color, #94a3b8);
+}
+
 /* ---- Body ---- */
 .layout__body {
   display: flex;
@@ -240,5 +271,10 @@ $sidebar-collapsed: 74px;
   flex: 1;
   min-width: 0;
   padding: 1.5rem;
+  /* Own scroll region (mirrors .sidebar) so the window itself never scrolls.
+     This makes .content the scroll container that descendant `position: sticky`
+     toolbars (e.g. the Course form action bar) pin against. */
+  height: calc(100vh - #{$topbar-height});
+  overflow-y: auto;
   overflow-x: auto;
 }

@@ -1,14 +1,37 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
+import { ConfirmationService } from 'primeng/api';
 
 import { AppUserForm } from './app-user-form';
 import { AppUserService } from '@core/services/app-user.service';
 import { LookupService } from '@core/services/lookup.service';
 import { AppUser } from '@core/models/app-user.model';
 import { AppRoleLookup } from '@core/models/app-role-lookup.model';
+
+const ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
+const STORAGE_KEY = 'cms-auth';
+
+/** Build an unsigned-but-well-formed JWT so AuthService can decode role claims from it. */
+function makeJwt(payload: Record<string, unknown>): string {
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc(payload)}.sig`;
+}
+
+/** Seed session storage with a signed-in profile carrying the given roles (empty = signed out). */
+function signIn(roles: string[]): void {
+  if (roles.length === 0) return;
+  const token = makeJwt({ userId: 'boss', userName: 'Boss', [ROLE_CLAIM]: roles });
+  sessionStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ userId: 'boss', userName: 'Boss', accessToken: token }),
+  );
+}
 
 const roles: AppRoleLookup[] = [
   { roleId: 'Admin', roleName: 'Administrator', label: 'Administrator (Admin)' },
@@ -25,11 +48,20 @@ const helen: AppUser = {
   roleIds: ['Admin'],
 };
 
-function setup(userId: string | null) {
-  const serviceSpy = jasmine.createSpyObj<AppUserService>('AppUserService', ['getById', 'create', 'update']);
+function setup(userId: string | null, signedInRoles: string[] = []) {
+  sessionStorage.clear();
+  signIn(signedInRoles);
+
+  const serviceSpy = jasmine.createSpyObj<AppUserService>('AppUserService', [
+    'getById',
+    'create',
+    'update',
+    'resetPassword',
+  ]);
   serviceSpy.getById.and.returnValue(of(helen));
   serviceSpy.create.and.returnValue(of(helen));
   serviceSpy.update.and.returnValue(of(void 0));
+  serviceSpy.resetPassword.and.returnValue(of(void 0));
 
   const lookupSpy = jasmine.createSpyObj<LookupService>('LookupService', ['getAppRoles']);
   lookupSpy.getAppRoles.and.returnValue(of(roles));
@@ -39,6 +71,8 @@ function setup(userId: string | null) {
     providers: [
       provideRouter([]),
       provideNoopAnimations(),
+      provideHttpClient(),
+      provideHttpClientTesting(),
       { provide: AppUserService, useValue: serviceSpy },
       { provide: LookupService, useValue: lookupSpy },
       {
@@ -51,6 +85,15 @@ function setup(userId: string | null) {
   const fixture: ComponentFixture<AppUserForm> = TestBed.createComponent(AppUserForm);
   fixture.detectChanges();
   return { fixture, component: fixture.componentInstance, serviceSpy, lookupSpy };
+}
+
+afterEach(() => sessionStorage.clear());
+
+/** The reset-password button's Chinese label, used to locate it in the rendered toolbar. */
+const RESET_LABEL = '重設密碼為預設值';
+
+function resetButtonText(fixture: ComponentFixture<AppUserForm>): string {
+  return (fixture.nativeElement as HTMLElement).textContent ?? '';
 }
 
 describe('AppUserForm (add mode)', () => {
@@ -87,6 +130,11 @@ describe('AppUserForm (add mode)', () => {
     component.save();
     expect(component['saving']()).toBe(false);
   });
+
+  it('never shows the reset-password button in add mode, even for an Admin', () => {
+    const { fixture } = setup(null, ['Admin']);
+    expect(resetButtonText(fixture)).not.toContain(RESET_LABEL);
+  });
 });
 
 describe('AppUserForm (edit mode)', () => {
@@ -106,5 +154,45 @@ describe('AppUserForm (edit mode)', () => {
     component.save();
     expect(serviceSpy.update).toHaveBeenCalled();
     expect(navSpy).toHaveBeenCalledWith(['/app-users', 'helen']);
+  });
+
+  // --- Reset password button (Admin-only) -------------------------------
+
+  it('shows the reset-password button for an Admin', () => {
+    const { component, fixture } = setup('helen', ['Admin']);
+    expect(component['isAdmin']()).toBe(true);
+    expect(resetButtonText(fixture)).toContain(RESET_LABEL);
+  });
+
+  it('hides the reset-password button for a non-Admin', () => {
+    const { component, fixture } = setup('helen', ['User']);
+    expect(component['isAdmin']()).toBe(false);
+    expect(resetButtonText(fixture)).not.toContain(RESET_LABEL);
+  });
+
+  it('hides the reset-password button when signed out', () => {
+    const { component, fixture } = setup('helen', []);
+    expect(component['isAdmin']()).toBe(false);
+    expect(resetButtonText(fixture)).not.toContain(RESET_LABEL);
+  });
+
+  it('reset (confirmed) calls the service with the edited userId', () => {
+    const { component, fixture, serviceSpy } = setup('helen', ['Admin']);
+    const confirmation = fixture.debugElement.injector.get(ConfirmationService);
+    spyOn(confirmation, 'confirm').and.callFake((opts) => {
+      opts.accept?.();
+      return confirmation;
+    });
+    component.confirmResetPassword();
+    expect(serviceSpy.resetPassword).toHaveBeenCalledWith('helen');
+  });
+
+  it('does not reset for a non-Admin even if invoked directly', () => {
+    const { component, fixture, serviceSpy } = setup('helen', ['User']);
+    const confirmation = fixture.debugElement.injector.get(ConfirmationService);
+    const confirmSpy = spyOn(confirmation, 'confirm').and.callThrough();
+    component.confirmResetPassword();
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(serviceSpy.resetPassword).not.toHaveBeenCalled();
   });
 });

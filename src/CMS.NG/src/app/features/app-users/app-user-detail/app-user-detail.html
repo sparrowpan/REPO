@@ -12,9 +12,11 @@
     <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="back()">
       <i class="pi pi-arrow-left"></i>&nbsp;返回
     </button>
-    <button pButton type="button" class="p-button-outlined p-button-warn" (click)="confirmResetPassword()" [disabled]="!user()">
-      <i class="pi pi-key"></i>&nbsp;重設密碼
-    </button>
+    @if (isAdmin()) {
+      <button pButton type="button" class="p-button-outlined p-button-warn" (click)="confirmResetPassword()" [disabled]="!user()">
+        <i class="pi pi-key"></i>&nbsp;重設密碼
+      </button>
+    }
     <button pButton type="button" class="p-button-success" (click)="edit()" [disabled]="!user()">
       <i class="pi pi-pencil"></i>&nbsp;編輯
     </button>

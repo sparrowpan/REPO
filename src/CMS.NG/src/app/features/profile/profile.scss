@@ -1,0 +1,94 @@
+.page-card {
+  background: var(--p-content-background, #fff);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-header__title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.page-header__title h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #1f2a37;
+}
+
+.page-header__subtitle {
+  color: var(--p-text-muted-color, #94a3b8);
+  font-size: 0.9rem;
+}
+
+.section-title {
+  margin: 0 0 1.25rem;
+  font-size: 1.05rem;
+  color: #1f2a37;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.1rem;
+}
+
+.form-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.form-field input {
+  width: 100%;
+}
+
+/* Read-only UserId field reads as disabled without actually disabling the control. */
+.form-field input[readonly] {
+  background: var(--p-surface-100, #f1f5f9);
+  color: var(--p-text-muted-color, #64748b);
+  cursor: not-allowed;
+}
+
+.req {
+  color: #ef4444;
+}
+
+.err {
+  color: #ef4444;
+  font-size: 0.8rem;
+}
+
+.hint {
+  color: var(--p-text-muted-color, #94a3b8);
+  font-size: 0.78rem;
+}
+
+.role-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.muted {
+  color: var(--p-text-muted-color, #94a3b8);
+  margin: 0;
+}
+
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+}

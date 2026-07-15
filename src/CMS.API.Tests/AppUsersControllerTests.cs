@@ -1,6 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using CMS.API.Models;
+using CMS.API.Repositories;
+using CMS.API.Services;
+using CMS.API.Tests.Fakes;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CMS.API.Tests;
 
@@ -14,7 +18,7 @@ public class AppUsersControllerTests
     private static (CmsApiFactory factory, HttpClient client) CreateClient()
     {
         var factory = new CmsApiFactory();
-        return (factory, factory.CreateClient());
+        return (factory, factory.CreateAuthenticatedClient());
     }
 
     // --- List / filter ------------------------------------------------------
@@ -222,12 +226,18 @@ public class AppUsersControllerTests
         Assert.Equal(HttpStatusCode.NotFound, check.StatusCode);
     }
 
-    // --- Reset password -----------------------------------------------------
+    // --- Reset password (Admin-only) ----------------------------------------
+
+    private static (CmsApiFactory factory, HttpClient client) AdminClient()
+    {
+        var factory = new CmsApiFactory();
+        return (factory, factory.CreateAuthenticatedClient("Admin"));
+    }
 
     [Fact]
-    public async Task ResetPassword_ExistingUser_Returns204()
+    public async Task ResetPassword_AsAdmin_Returns204()
     {
-        var (factory, client) = CreateClient();
+        var (factory, client) = AdminClient();
         using var _ = factory;
 
         var response = await client.PostAsync("/api/appusers/helen/reset-password", null);
@@ -236,9 +246,70 @@ public class AppUsersControllerTests
     }
 
     [Fact]
-    public async Task ResetPassword_UnknownUser_Returns404()
+    public async Task ResetPassword_AsNonAdmin_Returns403()
     {
-        var (factory, client) = CreateClient();
+        var factory = new CmsApiFactory();
+        using var _ = factory;
+        // Authenticated, but without the Admin role — must be forbidden, not merely unauthorized.
+        var client = factory.CreateAuthenticatedClient("User");
+
+        var response = await client.PostAsync("/api/appusers/helen/reset-password", null);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetPassword_WithoutToken_Returns401()
+    {
+        var factory = new CmsApiFactory();
+        using var _ = factory;
+        var client = factory.CreateClient(); // no Authorization header
+
+        var response = await client.PostAsync("/api/appusers/helen/reset-password", null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetPassword_AsAdmin_SetsHashToSha256OfDefault_AndStampsUpdateTime()
+    {
+        var (factory, client) = AdminClient();
+        using var _ = factory;
+        var fake = (FakeAppUserRepository)factory.Services.GetRequiredService<IAppUserRepository>();
+
+        var before = (await client.GetFromJsonAsync<AppUser>("/api/appusers/helen"))!.PasswordUpdatedTime;
+
+        var response = await client.PostAsync("/api/appusers/helen/reset-password", null);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        // PasswordHash is exactly SHA-256 of the SysConfig default password...
+        Assert.Equal(PasswordHasher.Hash(FakeAppUserRepository.DefaultPassword), fake.GetPasswordHash("helen"));
+
+        // ...and PasswordUpdatedTime advanced past the seed value.
+        var after = (await client.GetFromJsonAsync<AppUser>("/api/appusers/helen"))!.PasswordUpdatedTime;
+        Assert.True(after > before, "PasswordUpdatedTime should move forward after a reset.");
+    }
+
+    [Fact]
+    public async Task ResetPassword_AsAdmin_ResponseNeverContainsPasswordOrHash()
+    {
+        var (factory, client) = AdminClient();
+        using var _ = factory;
+
+        var response = await client.PostAsync("/api/appusers/helen/reset-password", null);
+        var raw = await response.Content.ReadAsStringAsync();
+
+        // 204 carries no body — and certainly no plaintext default or hash.
+        Assert.True(string.IsNullOrEmpty(raw));
+        Assert.DoesNotContain(FakeAppUserRepository.DefaultPassword, raw, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            PasswordHasher.Hash(FakeAppUserRepository.DefaultPassword), raw, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ResetPassword_UnknownUser_AsAdmin_Returns404()
+    {
+        var (factory, client) = AdminClient();
         using var _ = factory;
 
         var response = await client.PostAsync("/api/appusers/ghost/reset-password", null);

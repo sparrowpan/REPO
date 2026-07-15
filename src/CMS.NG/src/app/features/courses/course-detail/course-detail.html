@@ -48,6 +48,9 @@
           <a [routerLink]="['/publish-statuses', c.publishStatusPkid]" class="link">{{ c.publishStatus.description }}</a>
         } @else { — }
       </dd></div>
+      <div class="detail-item detail-item--wide"><dt>QR Code</dt><dd>
+        <course-qr-code [pkid]="c.pkid" [courseId]="c.courseId" />
+      </dd></div>
     </dl>
   </div>
 

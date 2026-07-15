@@ -42,4 +42,14 @@ public class LookupsController(ILookupRepository repository) : ControllerBase
     [HttpGet("certifications")]
     public async Task<ActionResult<IReadOnlyList<CertificationLookup>>> GetCertifications(CancellationToken ct)
         => Ok(await repository.GetCertificationsAsync(ct));
+
+    /// <summary>Slim TrainingCenter list — drives the FeaturedPromoItem board's center tabs.</summary>
+    [HttpGet("training-centers")]
+    public async Task<ActionResult<IReadOnlyList<TrainingCenterLookup>>> GetTrainingCenters(CancellationToken ct)
+        => Ok(await repository.GetTrainingCentersAsync(ct));
+
+    /// <summary>Promotion2 list (pkid + PromoCode + Topic + Description) for the board's PromoCode lookup.</summary>
+    [HttpGet("promotions")]
+    public async Task<ActionResult<IReadOnlyList<PromotionLookup>>> GetPromotions(CancellationToken ct)
+        => Ok(await repository.GetPromotionsAsync(ct));
 }

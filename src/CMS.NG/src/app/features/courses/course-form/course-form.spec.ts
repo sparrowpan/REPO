@@ -107,6 +107,65 @@ describe('CourseForm (add mode)', () => {
   });
 });
 
+describe('CourseForm sticky action toolbar', () => {
+  function assertStickyToolbar(fixture: ComponentFixture<CourseForm>) {
+    const el = fixture.nativeElement as HTMLElement;
+    const header = el.querySelector('.page-header') as HTMLElement;
+    expect(header).withContext('action toolbar renders').not.toBeNull();
+
+    // Pinned/frozen so Save & Cancel stay visible while the form body scrolls.
+    expect(getComputedStyle(header).position).toBe('sticky');
+
+    // Save & Cancel remain present inside the toolbar.
+    const buttons = header.querySelectorAll('.page-header__actions button');
+    const labels = Array.from(buttons).map((b) => b.textContent?.trim() ?? '');
+    expect(labels.some((t) => t.includes('儲存'))).withContext('Save present').toBe(true);
+    expect(labels.some((t) => t.includes('取消'))).withContext('Cancel present').toBe(true);
+  }
+
+  it('renders a pinned toolbar with Save/Cancel on the New form', () => {
+    const { fixture } = setup(null);
+    assertStickyToolbar(fixture);
+  });
+
+  it('renders a pinned toolbar with Save/Cancel on the Edit form', () => {
+    const { fixture } = setup('2');
+    assertStickyToolbar(fixture);
+  });
+
+  it('keeps the toolbar pinned to the top while the form body scrolls', () => {
+    const { fixture } = setup('2');
+
+    // Reproduce the app shell's scroll region (.content in app.scss): a bounded,
+    // internally-scrolling container is what `position: sticky` pins against.
+    const scroller = document.createElement('div');
+    scroller.style.height = '250px';
+    scroller.style.overflowY = 'auto';
+    scroller.appendChild(fixture.nativeElement);
+    document.body.appendChild(scroller);
+
+    try {
+      const header = scroller.querySelector('.page-header') as HTMLElement;
+      const firstCard = scroller.querySelectorAll('.page-card')[1] as HTMLElement; // body card, not the toolbar
+
+      const containerTop = scroller.getBoundingClientRect().top;
+      const cardTopBefore = firstCard.getBoundingClientRect().top;
+
+      scroller.scrollTop = 400; // scroll the form body well past the toolbar's height
+
+      const headerTop = header.getBoundingClientRect().top;
+      const cardTopAfter = firstCard.getBoundingClientRect().top;
+
+      // Body content actually moved up (the form scrolled)...
+      expect(cardTopAfter).toBeLessThan(cardTopBefore - 100);
+      // ...but the toolbar stayed pinned at the top of the scroll region.
+      expect(Math.abs(headerTop - containerTop)).toBeLessThan(2);
+    } finally {
+      document.body.removeChild(scroller);
+    }
+  });
+});
+
 describe('CourseForm (edit mode)', () => {
   it('loads the course and patches the form', () => {
     const { component, serviceSpy } = setup('2');

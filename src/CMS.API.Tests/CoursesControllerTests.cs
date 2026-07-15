@@ -14,7 +14,7 @@ public class CoursesControllerTests
     private static (CmsApiFactory factory, HttpClient client) CreateClient()
     {
         var factory = new CmsApiFactory();
-        return (factory, factory.CreateClient());
+        return (factory, factory.CreateAuthenticatedClient());
     }
 
     private static CourseRequest ValidRequest(int pkid = 0) => new()

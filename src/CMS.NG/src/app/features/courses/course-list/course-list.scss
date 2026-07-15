@@ -40,6 +40,22 @@
   gap: 0.15rem;
 }
 
+// Inline editing: hint that a cell is double-click editable, and lay out the editor + error.
+.editable {
+  cursor: cell;
+}
+
+:host ::ng-deep .cell-editor {
+  width: 100%;
+}
+
+.cell-error {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--p-red-500, #ef4444);
+  font-size: 0.75rem;
+}
+
 .link {
   color: var(--p-primary-color);
 }
