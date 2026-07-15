@@ -1,12 +1,16 @@
+using System.Data;
 using CMS.API.Infrastructure;
 using CMS.API.Models;
+using CMS.API.Services;
 using Dapper;
 
 namespace CMS.API.Repositories;
 
 /// <summary>Dapper-based data access for <see cref="PublishStatus"/> (no EF).</summary>
-public sealed class PublishStatusRepository(IDbConnectionFactory connectionFactory) : IPublishStatusRepository
+public sealed class PublishStatusRepository(IDbConnectionFactory connectionFactory, RowAuditWriter audit) : IPublishStatusRepository
 {
+    private const string TableName = "PublishStatus";
+
     private const string SelectColumns = """
         SELECT s.pkid, s.Description, s.IsDraft, s.IsPublished, s.IsDiscontinued
         FROM PublishStatus s
@@ -61,14 +65,15 @@ public sealed class PublishStatusRepository(IDbConnectionFactory connectionFacto
     public async Task<PublishStatus> CreateAsync(PublishStatusRequest request, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
+        using var tx = conn.BeginTransaction();
 
         // pkid is user-entered (tinyint, not identity) — insert it explicitly, no SCOPE_IDENTITY().
         await conn.ExecuteAsync(new CommandDefinition("""
             INSERT INTO PublishStatus (pkid, Description, IsDraft, IsPublished, IsDiscontinued)
             VALUES (@Pkid, @Description, @IsDraft, @IsPublished, @IsDiscontinued);
-            """, request, cancellationToken: ct));
+            """, request, tx, cancellationToken: ct));
 
-        return new PublishStatus
+        var created = new PublishStatus
         {
             Pkid = request.Pkid,
             Description = request.Description,
@@ -76,27 +81,61 @@ public sealed class PublishStatusRepository(IDbConnectionFactory connectionFacto
             IsPublished = request.IsPublished,
             IsDiscontinued = request.IsDiscontinued,
         };
+
+        await audit.LogInsert(TableName, created, conn, tx, ct);
+        tx.Commit();
+        return created;
     }
 
     public async Task<bool> UpdateAsync(PublishStatusRequest request, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
-        var affected = await conn.ExecuteAsync(new CommandDefinition("""
+        using var tx = conn.BeginTransaction();
+
+        var before = await LoadForAuditAsync(conn, tx, request.Pkid, ct);
+        if (before is null)
+        {
+            tx.Rollback();
+            return false;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE PublishStatus
             SET Description = @Description,
                 IsDraft = @IsDraft,
                 IsPublished = @IsPublished,
                 IsDiscontinued = @IsDiscontinued
             WHERE pkid = @Pkid;
-            """, request, cancellationToken: ct));
-        return affected > 0;
+            """, request, tx, cancellationToken: ct));
+
+        var after = await LoadForAuditAsync(conn, tx, request.Pkid, ct);
+        await audit.LogUpdate(TableName, before, after!, conn, tx, ct);
+        tx.Commit();
+        return true;
     }
 
     public async Task<bool> DeleteAsync(byte pkid, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
-        var affected = await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM PublishStatus WHERE pkid = @Pkid", new { Pkid = pkid }, cancellationToken: ct));
-        return affected > 0;
+        using var tx = conn.BeginTransaction();
+
+        var existing = await LoadForAuditAsync(conn, tx, pkid, ct);
+        if (existing is null)
+        {
+            tx.Rollback();
+            return false;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM PublishStatus WHERE pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
+
+        await audit.LogDelete(TableName, existing, conn, tx, ct);
+        tx.Commit();
+        return true;
     }
+
+    /// <summary>Load a status's own columns on the given connection/transaction, for audit before/after snapshots.</summary>
+    private static async Task<PublishStatus?> LoadForAuditAsync(IDbConnection conn, IDbTransaction tx, byte pkid, CancellationToken ct)
+        => await conn.QuerySingleOrDefaultAsync<PublishStatus>(
+            new CommandDefinition($"{SelectColumns} WHERE s.pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
 }

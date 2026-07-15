@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of } from 'rxjs';
 
 import { CourseForm } from './course-form';
@@ -60,6 +62,8 @@ function setup(id: string | null) {
     providers: [
       provideRouter([]),
       provideNoopAnimations(),
+      provideHttpClient(),
+      provideHttpClientTesting(),
       { provide: CourseService, useValue: serviceSpy },
       { provide: LookupService, useValue: mockLookups() },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap(id ? { id } : {}) } } },

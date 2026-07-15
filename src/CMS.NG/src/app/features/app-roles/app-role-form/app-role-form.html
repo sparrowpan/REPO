@@ -6,6 +6,7 @@
       <h2>{{ isEdit() ? '編輯角色' : '新增角色' }}</h2>
     </div>
     <div class="page-header__actions">
+      <row-audit-badge tableName="AppRole" [pkid]="auditPkid()" />
       <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="cancel()">
         <i class="pi pi-times"></i>&nbsp;取消
       </button>

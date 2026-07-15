@@ -9,6 +9,7 @@ import { MessageService } from 'primeng/api';
 
 import { CourseGroupRequest } from '@core/models/course-group.model';
 import { CourseGroupService } from '@core/services/course-group.service';
+import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
 
 @Component({
   selector: 'course-group-form',
@@ -18,6 +19,7 @@ import { CourseGroupService } from '@core/services/course-group.service';
     ButtonModule,
     InputTextModule,
     ToastModule,
+    RowAuditBadge,
   ],
   providers: [MessageService],
   templateUrl: './course-group-form.html',
@@ -33,6 +35,8 @@ export class CourseGroupForm implements OnInit {
   protected readonly isEdit = signal(false);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
+  /** The edited record's pkid for the audit-history badge (0 in add mode → no history). */
+  protected readonly auditPkid = signal(0);
 
   private pkid = 0;
 
@@ -49,6 +53,7 @@ export class CourseGroupForm implements OnInit {
       this.service.getById(pkid).subscribe({
         next: (courseGroup) => {
           this.pkid = courseGroup.pkid;
+          this.auditPkid.set(courseGroup.pkid);
           this.form.patchValue({
             description: courseGroup.description,
           });

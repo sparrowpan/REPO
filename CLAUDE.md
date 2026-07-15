@@ -57,6 +57,19 @@ delete-then-reinsert in a transaction. Tests: `CmsApiFactory` swaps the repo for
 filter `p-drawer` (sessionStorage-persisted); form = Reactive Forms + `forkJoin` lookups. Gotchas (opt-in list
 inline edit, sticky form toolbar, window-doesn't-scroll app shell, Ultima sidebar theming) are in the reference.
 
+**RowAudit — applies to every CRUD repository; full detail in `spec/features.md` → RowAudit.** Every
+Insert/Update/Delete must write one `RowAudit` row via the shared `Services/RowAuditWriter.cs`
+(`AddScoped`, needs `IHttpContextAccessor`). Call `LogInsert/LogUpdate/LogDelete(table, …, conn, tx, ct)`
+**on the operation's own connection + transaction** so a rolled-back change writes no audit row. Pattern:
+Insert → load the new row inside the tx → `LogInsert`; Update → load `before`, apply, load `after` →
+`LogUpdate` (diffs scalar columns only; nav/collections/counts ignored); Delete → load the row → delete →
+`LogDelete`. Repos whose SELECT has nav joins/count subqueries use an own-columns-only `AuditSelectColumns`
+for the snapshots. `ActionDesc` = first string property (Insert/Delete) or changed-column names (Update).
+Read side: `GET /api/rowaudit?tableName=&pkid=` (newest first) feeds the reusable `RowAuditBadge`
+(`core/components/row-audit-badge/`) — **every detail and form page carries it in the `page-header__actions`
+toolbar**, passing the page's table name + the record's pkid (detail `record()?.pkid ?? 0`; form an `auditPkid`
+signal, 0 in add mode). Add it to any new detail/form page.
+
 **Auth — applies to every feature; full detail in `spec/features.md` → Auth.** The rules you must honor when
 adding *any* feature:
 - Backend: a global `RequireAuthenticatedUser` fallback protects **every controller by default** — do nothing
@@ -81,3 +94,15 @@ their specs live in `spec/custom/`. When you finish a feature, append its sectio
 | AppUser | 使用者 | `/app-users` | `auth.sql` | String PK `UserId`; n-n with AppRole; backend-only `PasswordHash`; Admin-only reset-to-default (`POST …/reset-password`) |
 | FeaturedPromoItem | 上稿作業 | `/featured-promo-items` | `promotion.sql` | **Custom** weekly board (center × Mon–Sun × 3 slots), not list/detail/form; slot `/move`; spec in `spec/custom/` |
 | Auth | 登入 | `/login`, `/profile`, `POST /api/Auth/*` | `auth.sql` | Login + JWT authorization end-to-end; My Profile + Change Password |
+| RowAudit | 異動記錄 | `GET /api/rowaudit` | `dbo.RowAudit` | **Cross-cutting** audit writer (`RowAuditWriter`); every CRUD Insert/Update/Delete writes one audit row on the op's transaction. Read side: `GET /api/rowaudit?tableName=&pkid=` + reusable `RowAuditBadge` on every detail/form toolbar |
+
+## gstack
+
+Use the **`/browse`** skill from gstack for **all** web browsing. **Never** use `mcp__claude-in-chrome__*` tools.
+
+Available skills: `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`,
+`/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`,
+`/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`,
+`/setup-browser-cookies`, `/setup-deploy`, `/setup-gbrain`, `/retro`, `/investigate`,
+`/document-release`, `/document-generate`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`,
+`/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`.

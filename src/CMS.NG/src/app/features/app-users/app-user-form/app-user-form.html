@@ -7,6 +7,7 @@
       <h2>{{ isEdit() ? '編輯使用者' : '新增使用者' }}</h2>
     </div>
     <div class="page-header__actions">
+      <row-audit-badge tableName="AppUser" [pkid]="auditPkid()" />
       <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="cancel()">
         <i class="pi pi-times"></i>&nbsp;取消
       </button>

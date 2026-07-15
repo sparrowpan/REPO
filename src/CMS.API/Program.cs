@@ -37,12 +37,17 @@ builder.Services.AddScoped<IPartnerRepository, PartnerRepository>();
 builder.Services.AddScoped<ICourseGroupRepository, CourseGroupRepository>();
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<IFeaturedPromoItemRepository, FeaturedPromoItemRepository>();
+builder.Services.AddScoped<IRowAuditRepository, RowAuditRepository>();
 builder.Services.AddScoped<ILookupRepository, LookupRepository>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
 // Authentication helpers.
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddSingleton<SigningKeyProvider>();
+
+// Cross-cutting row auditing: needs the current request's user, so expose IHttpContextAccessor.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<RowAuditWriter>();
 
 // JWT bearer authentication. The signing key is resolved at validation time from the
 // SysConfig 'appConfig' secret (via SigningKeyProvider) — the same key the AuthController signs with.

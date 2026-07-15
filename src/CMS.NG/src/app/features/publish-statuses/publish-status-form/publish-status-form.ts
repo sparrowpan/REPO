@@ -13,6 +13,7 @@ import { MessageService } from 'primeng/api';
 
 import { PublishStatusRequest } from '@core/models/publish-status.model';
 import { PublishStatusService } from '@core/services/publish-status.service';
+import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
 
 @Component({
   selector: 'publish-status-form',
@@ -24,6 +25,7 @@ import { PublishStatusService } from '@core/services/publish-status.service';
     InputNumberModule,
     CheckboxModule,
     ToastModule,
+    RowAuditBadge,
   ],
   providers: [MessageService],
   templateUrl: './publish-status-form.html',
@@ -39,6 +41,8 @@ export class PublishStatusForm implements OnInit {
   protected readonly isEdit = signal(false);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
+  /** The edited record's pkid for the audit-history badge (0 in add mode → no history). */
+  protected readonly auditPkid = signal(0);
 
   protected readonly form = this.fb.group({
     pkid: this.fb.nonNullable.control<number | null>(null, [Validators.required]),
@@ -56,6 +60,7 @@ export class PublishStatusForm implements OnInit {
       const pkid = Number(idParam);
       this.service.getById(pkid).subscribe({
         next: (status) => {
+          this.auditPkid.set(status.pkid);
           this.form.patchValue({
             pkid: status.pkid,
             description: status.description,

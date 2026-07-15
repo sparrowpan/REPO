@@ -23,6 +23,7 @@ import { PublishStatusLookup } from '@core/models/publish-status-lookup.model';
 import { JobCategoryLookup } from '@core/models/job-category-lookup.model';
 import { CertificationLookup } from '@core/models/certification-lookup.model';
 import { toIso, fromIso } from '@core/utils/date.util';
+import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
 
 @Component({
   selector: 'course-form',
@@ -38,6 +39,7 @@ import { toIso, fromIso } from '@core/utils/date.util';
     DatePickerModule,
     CheckboxModule,
     ToastModule,
+    RowAuditBadge,
   ],
   providers: [MessageService],
   templateUrl: './course-form.html',
@@ -60,6 +62,8 @@ export class CourseForm implements OnInit {
   protected readonly publishStatuses = signal<PublishStatusLookup[]>([]);
   protected readonly jobCategories = signal<JobCategoryLookup[]>([]);
   protected readonly certifications = signal<CertificationLookup[]>([]);
+  /** The edited record's pkid for the audit-history badge (0 in add mode → no history). */
+  protected readonly auditPkid = signal(0);
 
   private pkid = 0;
 
@@ -112,6 +116,7 @@ export class CourseForm implements OnInit {
 
         if (course) {
           this.pkid = course.pkid;
+          this.auditPkid.set(course.pkid);
           this.form.patchValue({
             title: course.title,
             officialTitle: course.officialTitle,

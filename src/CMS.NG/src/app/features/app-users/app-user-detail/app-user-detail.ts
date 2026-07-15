@@ -13,10 +13,11 @@ import { AppRoleLookup } from '@core/models/app-role-lookup.model';
 import { AppUserService } from '@core/services/app-user.service';
 import { LookupService } from '@core/services/lookup.service';
 import { AuthService } from '@core/services/auth.service';
+import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
 
 @Component({
   selector: 'app-user-detail',
-  imports: [CommonModule, ButtonModule, TagModule, ToastModule, ConfirmDialogModule],
+  imports: [CommonModule, ButtonModule, TagModule, ToastModule, ConfirmDialogModule, RowAuditBadge],
   providers: [ConfirmationService, MessageService],
   templateUrl: './app-user-detail.html',
   styleUrl: './app-user-detail.scss',

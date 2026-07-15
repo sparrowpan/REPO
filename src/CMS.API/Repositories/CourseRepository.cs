@@ -1,13 +1,26 @@
 using System.Data;
 using CMS.API.Infrastructure;
 using CMS.API.Models;
+using CMS.API.Services;
 using Dapper;
 
 namespace CMS.API.Repositories;
 
 /// <summary>Dapper-based data access for <see cref="Course"/> (no EF).</summary>
-public sealed class CourseRepository(IDbConnectionFactory connectionFactory) : ICourseRepository
+public sealed class CourseRepository(IDbConnectionFactory connectionFactory, RowAuditWriter audit) : ICourseRepository
 {
+    private const string TableName = "Course";
+
+    // Own-table scalar columns only (no FK joins / n-n count subqueries) — used for audit before/after
+    // snapshots so the changed-column list stays limited to real Course columns.
+    private const string AuditSelectColumns = """
+        SELECT c.pkid, c.Title, c.OfficialTitle, c.CourseId, c.ProdCourseId, c.FriendlyUrl, c.DisplayOrder,
+               c.Partner_pkid AS PartnerPkid, c.CourseGroup_pkid AS CourseGroupPkid, c.PublishStatus_pkid AS PublishStatusPkid,
+               c.ScheduleOn, c.ScheduleOff, c.[Hour], c.ListPrice, c.LearningCredit,
+               c.Material, c.Objective, c.Target, c.Prerequisites, c.Outline, c.TowardCertOrExam, c.Note, c.OtherInfo, c.CanRepeat
+        FROM Course c
+        """;
+
     // Course columns first, then the three FK nav blocks (each starting with a `Pkid` split marker).
     // splitOn "Pkid,Pkid,Pkid" boundaries the Partner / CourseGroup / PublishStatus objects.
     private const string SelectColumns = """
@@ -133,6 +146,10 @@ public sealed class CourseRepository(IDbConnectionFactory connectionFactory) : I
 
         await SyncJobCategoriesAsync(conn, tx, pkid, request.JobCategoryPkids, ct);
         await SyncCertificationsAsync(conn, tx, pkid, request.CertificationPkids, ct);
+
+        // Audit within the transaction — load the just-inserted row (not yet committed) on the same connection.
+        var created = (await LoadForAuditAsync(conn, tx, pkid, ct))!;
+        await audit.LogInsert(TableName, created, conn, tx, ct);
         tx.Commit();
 
         return (await GetByPkidAsync(pkid, ct))!;
@@ -142,6 +159,13 @@ public sealed class CourseRepository(IDbConnectionFactory connectionFactory) : I
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
         using var tx = conn.BeginTransaction();
+
+        var before = await LoadForAuditAsync(conn, tx, request.Pkid, ct);
+        if (before is null)
+        {
+            tx.Rollback();
+            return false;
+        }
 
         var affected = await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE Course SET
@@ -163,6 +187,9 @@ public sealed class CourseRepository(IDbConnectionFactory connectionFactory) : I
 
         await SyncJobCategoriesAsync(conn, tx, request.Pkid, request.JobCategoryPkids, ct);
         await SyncCertificationsAsync(conn, tx, request.Pkid, request.CertificationPkids, ct);
+
+        var after = await LoadForAuditAsync(conn, tx, request.Pkid, ct);
+        await audit.LogUpdate(TableName, before, after!, conn, tx, ct);
         tx.Commit();
         return true;
     }
@@ -172,17 +199,30 @@ public sealed class CourseRepository(IDbConnectionFactory connectionFactory) : I
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
         using var tx = conn.BeginTransaction();
 
+        var existing = await LoadForAuditAsync(conn, tx, pkid, ct);
+        if (existing is null)
+        {
+            tx.Rollback();
+            return false;
+        }
+
         // Remove junction rows first (DB cascades too, but keep the repo self-consistent).
         await conn.ExecuteAsync(new CommandDefinition(
             "DELETE FROM CourseJobCategories WHERE Course_pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
         await conn.ExecuteAsync(new CommandDefinition(
             "DELETE FROM CourseInCertification WHERE Course_pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
-        var affected = await conn.ExecuteAsync(new CommandDefinition(
+        await conn.ExecuteAsync(new CommandDefinition(
             "DELETE FROM Course WHERE pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
 
+        await audit.LogDelete(TableName, existing, conn, tx, ct);
         tx.Commit();
-        return affected > 0;
+        return true;
     }
+
+    /// <summary>Load a course's own scalar columns on the given connection/transaction, for audit snapshots.</summary>
+    private static async Task<Course?> LoadForAuditAsync(IDbConnection conn, IDbTransaction tx, int pkid, CancellationToken ct)
+        => await conn.QuerySingleOrDefaultAsync<Course>(
+            new CommandDefinition($"{AuditSelectColumns} WHERE c.pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
 
     /// <summary>n-n sync: delete-then-reinsert the CourseJobCategories rows for a course.</summary>
     private static async Task SyncJobCategoriesAsync(

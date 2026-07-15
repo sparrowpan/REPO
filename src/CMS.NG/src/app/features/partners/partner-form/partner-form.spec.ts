@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of } from 'rxjs';
 
 import { PartnerForm } from './partner-form';
@@ -28,6 +30,8 @@ function setup(id: string | null) {
     providers: [
       provideRouter([]),
       provideNoopAnimations(),
+      provideHttpClient(),
+      provideHttpClientTesting(),
       { provide: PartnerService, useValue: serviceSpy },
       {
         provide: ActivatedRoute,

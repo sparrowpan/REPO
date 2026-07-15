@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using CMS.API.Infrastructure;
 using CMS.API.Models;
+using CMS.API.Services;
 using Dapper;
 
 namespace CMS.API.Repositories;
@@ -13,14 +14,23 @@ namespace CMS.API.Repositories;
 /// PasswordHash is never read into the model nor accepted from the client. On create it is derived
 /// from the SysConfig default password; it changes only via <see cref="ResetPasswordAsync"/>.
 /// </remarks>
-public sealed class AppUserRepository(IDbConnectionFactory connectionFactory) : IAppUserRepository
+public sealed class AppUserRepository(IDbConnectionFactory connectionFactory, RowAuditWriter audit) : IAppUserRepository
 {
     /// <summary>Used when SysConfig has no appConfig row / no defaultPassword property.</summary>
     private const string FallbackDefaultPassword = "Password123!";
 
+    private const string TableName = "AppUser";
+
     private const string SelectColumns = """
         SELECT u.pkid, u.UserId, u.UserName, u.IsActive, u.PasswordUpdatedTime,
                (SELECT COUNT(*) FROM AppUserRole ur WHERE ur.UserId = u.UserId) AS RoleCount
+        FROM AppUser u
+        """;
+
+    // Own-table columns only (no RoleCount subquery) — used for audit before/after snapshots so the
+    // changed-column list stays limited to real AppUser columns and ignores n-n membership churn.
+    private const string AuditSelectColumns = """
+        SELECT u.pkid, u.UserId, u.UserName, u.IsActive, u.PasswordUpdatedTime
         FROM AppUser u
         """;
 
@@ -91,9 +101,8 @@ public sealed class AppUserRepository(IDbConnectionFactory connectionFactory) : 
             tx, cancellationToken: ct));
 
         await SyncRolesAsync(conn, tx, request.UserId, request.RoleIds, ct);
-        tx.Commit();
 
-        return new AppUser
+        var created = new AppUser
         {
             Pkid = pkid,
             UserId = request.UserId,
@@ -103,12 +112,23 @@ public sealed class AppUserRepository(IDbConnectionFactory connectionFactory) : 
             RoleCount = request.RoleIds.Count,
             RoleIds = request.RoleIds,
         };
+
+        await audit.LogInsert(TableName, created, conn, tx, ct);
+        tx.Commit();
+        return created;
     }
 
     public async Task<bool> UpdateAsync(AppUserRequest request, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
         using var tx = conn.BeginTransaction();
+
+        var before = await LoadForAuditAsync(conn, tx, request.UserId, ct);
+        if (before is null)
+        {
+            tx.Rollback();
+            return false;
+        }
 
         // PasswordHash / PasswordUpdatedTime are intentionally left untouched here.
         var affected = await conn.ExecuteAsync(new CommandDefinition("""
@@ -125,6 +145,9 @@ public sealed class AppUserRepository(IDbConnectionFactory connectionFactory) : 
         }
 
         await SyncRolesAsync(conn, tx, request.UserId, request.RoleIds, ct);
+
+        var after = await LoadForAuditAsync(conn, tx, request.UserId, ct);
+        await audit.LogUpdate(TableName, before, after!, conn, tx, ct);
         tx.Commit();
         return true;
     }
@@ -134,15 +157,28 @@ public sealed class AppUserRepository(IDbConnectionFactory connectionFactory) : 
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
         using var tx = conn.BeginTransaction();
 
+        var existing = await LoadForAuditAsync(conn, tx, userId, ct);
+        if (existing is null)
+        {
+            tx.Rollback();
+            return false;
+        }
+
         // Remove junction rows first to satisfy the FK constraint.
         await conn.ExecuteAsync(new CommandDefinition(
             "DELETE FROM AppUserRole WHERE UserId = @UserId", new { UserId = userId }, tx, cancellationToken: ct));
-        var affected = await conn.ExecuteAsync(new CommandDefinition(
+        await conn.ExecuteAsync(new CommandDefinition(
             "DELETE FROM AppUser WHERE UserId = @UserId", new { UserId = userId }, tx, cancellationToken: ct));
 
+        await audit.LogDelete(TableName, existing, conn, tx, ct);
         tx.Commit();
-        return affected > 0;
+        return true;
     }
+
+    /// <summary>Load a user's own columns on the given connection/transaction, for audit before/after snapshots.</summary>
+    private static async Task<AppUser?> LoadForAuditAsync(IDbConnection conn, IDbTransaction tx, string userId, CancellationToken ct)
+        => await conn.QuerySingleOrDefaultAsync<AppUser>(
+            new CommandDefinition($"{AuditSelectColumns} WHERE u.UserId = @UserId", new { UserId = userId }, tx, cancellationToken: ct));
 
     public async Task<bool> ResetPasswordAsync(string userId, CancellationToken ct = default)
     {

@@ -42,6 +42,9 @@ public sealed class CmsApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IFeaturedPromoItemRepository>();
             services.AddSingleton<IFeaturedPromoItemRepository, FakeFeaturedPromoItemRepository>();
 
+            services.RemoveAll<IRowAuditRepository>();
+            services.AddSingleton<IRowAuditRepository, FakeRowAuditRepository>();
+
             services.RemoveAll<ILookupRepository>();
             services.AddSingleton<ILookupRepository, FakeLookupRepository>();
 

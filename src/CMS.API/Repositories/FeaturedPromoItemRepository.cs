@@ -1,12 +1,16 @@
+using System.Data;
 using CMS.API.Infrastructure;
 using CMS.API.Models;
+using CMS.API.Services;
 using Dapper;
 
 namespace CMS.API.Repositories;
 
 /// <summary>Dapper-based data access for <see cref="FeaturedPromoItem"/> (no EF).</summary>
-public sealed class FeaturedPromoItemRepository(IDbConnectionFactory connectionFactory) : IFeaturedPromoItemRepository
+public sealed class FeaturedPromoItemRepository(IDbConnectionFactory connectionFactory, RowAuditWriter audit) : IFeaturedPromoItemRepository
 {
+    private const string TableName = "FeaturedPromoItem";
+
     // PromoCode is joined from Promotion2 for display; all other columns live on FeaturedPromoItem.
     private const string SelectColumns = """
         SELECT f.pkid AS Pkid, f.ScheduleOn, f.TrainingCenter_pkid AS TrainingCenterPkid,
@@ -56,34 +60,70 @@ public sealed class FeaturedPromoItemRepository(IDbConnectionFactory connectionF
     public async Task<FeaturedPromoItem> CreateAsync(FeaturedPromoItemRequest request, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
+        using var tx = conn.BeginTransaction();
+
         var pkid = await conn.ExecuteScalarAsync<int>(new CommandDefinition("""
             INSERT INTO FeaturedPromoItem (ScheduleOn, TrainingCenter_pkid, Slot, Promotion_pkid, Topic, Description)
             VALUES (@ScheduleOn, @TrainingCenterPkid, @Slot, @PromotionPkid, @Topic, @Description);
             SELECT CAST(SCOPE_IDENTITY() AS int);
-            """, request, cancellationToken: ct));
+            """, request, tx, cancellationToken: ct));
 
-        return (await GetByPkidAsync(pkid, ct))!;
+        // Load within the transaction — the row is not yet committed, so a fresh connection can't see it.
+        var created = (await LoadForAuditAsync(conn, tx, pkid, ct))!;
+        await audit.LogInsert(TableName, created, conn, tx, ct);
+        tx.Commit();
+        return created;
     }
 
     public async Task<bool> UpdateAsync(FeaturedPromoItemRequest request, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
-        var affected = await conn.ExecuteAsync(new CommandDefinition("""
+        using var tx = conn.BeginTransaction();
+
+        var before = await LoadForAuditAsync(conn, tx, request.Pkid, ct);
+        if (before is null)
+        {
+            tx.Rollback();
+            return false;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE FeaturedPromoItem SET
                 ScheduleOn = @ScheduleOn, TrainingCenter_pkid = @TrainingCenterPkid, Slot = @Slot,
                 Promotion_pkid = @PromotionPkid, Topic = @Topic, Description = @Description
             WHERE pkid = @Pkid;
-            """, request, cancellationToken: ct));
-        return affected > 0;
+            """, request, tx, cancellationToken: ct));
+
+        var after = await LoadForAuditAsync(conn, tx, request.Pkid, ct);
+        await audit.LogUpdate(TableName, before, after!, conn, tx, ct);
+        tx.Commit();
+        return true;
     }
 
     public async Task<bool> DeleteAsync(int pkid, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
-        var affected = await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM FeaturedPromoItem WHERE pkid = @Pkid", new { Pkid = pkid }, cancellationToken: ct));
-        return affected > 0;
+        using var tx = conn.BeginTransaction();
+
+        var existing = await LoadForAuditAsync(conn, tx, pkid, ct);
+        if (existing is null)
+        {
+            tx.Rollback();
+            return false;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM FeaturedPromoItem WHERE pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
+
+        await audit.LogDelete(TableName, existing, conn, tx, ct);
+        tx.Commit();
+        return true;
     }
+
+    /// <summary>Load an item (incl. joined PromoCode) on the given connection/transaction, for audit snapshots.</summary>
+    private static async Task<FeaturedPromoItem?> LoadForAuditAsync(IDbConnection conn, IDbTransaction tx, int pkid, CancellationToken ct)
+        => await conn.QuerySingleOrDefaultAsync<FeaturedPromoItem>(
+            new CommandDefinition($"{SelectColumns} WHERE f.pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
 
     public async Task<bool> MoveToSlotAsync(int pkid, byte targetSlot, CancellationToken ct = default)
     {

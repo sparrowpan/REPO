@@ -152,3 +152,64 @@ and protects every endpoint/route. Schema: `database/auth.sql` (`AppUser`, `AppU
   save PUTs + refreshes shell/session; trims; skips API when blank; **change-password client validation**:
   empty fields, length < 8, < 3 classes, valid 3-class password, confirm mismatch, and a valid POST carrying
   no hash), and `app.spec.ts` (Admin group only with the `Admin` role; shell hidden when signed out).
+
+## RowAudit (異動記錄) — cross-cutting row auditing
+
+Cross-cutting audit trail: every business-table Insert / Update / Delete writes one row to the
+`RowAudit` table (`dbo.RowAudit`). Not a list/detail/form feature — it is a service repositories call.
+
+- **`Services/RowAuditWriter.cs`** — the single reusable writer, generic over any entity via reflection.
+  Registered `AddScoped<RowAuditWriter>()`; needs `IHttpContextAccessor` (`AddHttpContextAccessor()` in
+  `Program.cs`). API: `LogInsert(table, entity, conn, tx?, ct)`, `LogUpdate(table, before, after, conn, tx?, ct)`,
+  `LogDelete(table, entity, conn, tx?, ct)`.
+- **Writes on the caller's connection + transaction** — the audit INSERT runs inside the same transaction as
+  the change, so a rolled-back / failed change leaves no audit row. The writer opens no connection of its own.
+- Column mapping (writer → `RowAudit`): `TableName` = the real table name passed in; `UserName` = JWT
+  `userName` claim (falls back to `ClaimTypes.Name`, then `"system"` when unauthenticated); `PrimaryKeyValues`
+  = the entity's `pkid` (found case-insensitively by reflection) as a string; `ActionType` =
+  `Insert|Update|Delete`; `ActionDesc` per rule below (truncated to `ActionDescMaxLength` = 1000);
+  `[DateTime]` = `DateTime.Now` (mapped from the model's `ActionTime` property). `pkid` is IDENTITY — never inserted.
+- **`ActionDesc`**: Insert / Delete = the entity's **first string property** in declaration order (metadata-token
+  ordered), e.g. `Title` / `Name` / `Description`. Update = comma-separated **names of the changed properties**;
+  when nothing changed the writer returns null and **no row is written**.
+- **Change detection compares scalar (column-like) properties only** — primitives, enums, `string`, `decimal`,
+  `DateTime`/`DateOnly`/`TimeOnly`, `Guid`, and their nullables. Navigation objects, collections (n-n id/label
+  lists), and derived counts are ignored (they reference-compare unequal and aren't real columns).
+- **Repository wiring pattern** (all seven CRUD repos: AppRole, AppUser, PublishStatus, Partner, CourseGroup,
+  Course, FeaturedPromoItem): each Create/Update/Delete runs in a transaction. Insert → load the new row
+  *inside the tx* (a post-commit reload can't see it yet) → `LogInsert` → commit. Update → load `before`
+  (scalar snapshot) → apply → load `after` → `LogUpdate` → commit; returns `false` (rolled back) if the row is
+  missing. Delete → load the row (for its first string column) → delete → `LogDelete` → commit. Entities whose
+  read SELECT carries nav joins / count subqueries (Course, AppRole, AppUser) use a dedicated **own-columns-only**
+  `AuditSelectColumns` for the before/after snapshots so the diff stays limited to real table columns.
+- **Not audited (custom, non-triad ops):** `AppUserRepository.ResetPasswordAsync` and
+  `FeaturedPromoItemRepository.MoveToSlotAsync`. They aren't standard Insert/Update/Delete (reset touches the
+  backend-only `PasswordHash`; move swaps up to two rows), so they're intentionally left for a follow-up.
+- **History viewer (read side).** `GET /api/rowaudit?tableName={T}&pkid={n}` returns one record's audit trail,
+  newest first — a lean `RowAuditEntry` projection (`DateTime`, `UserName`, `ActionType`, `ActionDesc`; the
+  `TableName`/`PrimaryKeyValues` keys are the query, not the response). `pkid` is the record's **surrogate**
+  pkid (matched against `PrimaryKeyValues`, stored as text). Missing `tableName` → `400`; a record with no
+  history → `200` `[]`. Backend: `Controllers/RowAuditController.cs`, `Repositories/{IRowAuditRepository,RowAuditRepository}.cs`,
+  `Models/RowAuditEntry.cs`; `ORDER BY [DateTime] DESC, pkid DESC` (pkid tiebreaker for same-timestamp rows).
+  Protected by the global auth policy like every other controller.
+- **Reusable `RowAuditBadge`** (`core/components/row-audit-badge/`, selector `row-audit-badge`): a standalone
+  toolbar badge with inputs `tableName` + `pkid`. On load it fetches the trail (`core/services/row-audit.service.ts`)
+  and shows the **latest** change inline on the badge (`{ActionType} by {UserName} · {date}`); clicking opens a
+  `p-dialog` listing the full trail newest-first. Neutral "no history" state when the trail is empty or `pkid` is
+  falsy (an unsaved new record) — the latter skips the fetch. Placed in the `page-header__actions` toolbar of
+  **every** detail and form page (AppRole, AppUser, PublishStatus, Partner, CourseGroup, Course), passing that
+  page's table name and the current record's pkid (detail: `record()?.pkid ?? 0`; form: an `auditPkid` signal set
+  on edit-load, 0 in add mode).
+- Tests — backend: `RowAuditControllerTests.cs` (5: filters by tableName + pkid newest-first, excludes a
+  same-pkid different-table row, empty trail → `[]`, missing tableName → `400`, no token → `401`) +
+  `Fakes/FakeRowAuditRepository.cs` (seeds out-of-order rows across tables/pkids). Frontend:
+  `row-audit-badge.spec.ts` (latest shown inline on load, dialog lists the full trail newest-first, "no history"
+  empty state, and no fetch when pkid is falsy) + `row-audit.service.spec.ts`. The 12 existing detail/form specs
+  gained `provideHttpClient()`/`provideHttpClientTesting()` so the embedded badge can resolve `HttpClient`.
+- Tests — `RowAuditWriterTests.cs` (12): reflection logic (first-string `ActionDesc` for Insert/Delete incl.
+  declaration order, changed-name list + empty-when-unchanged for Update, `PrimaryKeyValues` from pkid,
+  `UserName` → `"system"` fallback, 1000-char truncation). `PublishStatusRepositoryAuditTests.cs` (7): runs the
+  **real** `PublishStatusRepository` against an in-memory **SQLite** DB (its SQL is provider-portable — user-entered
+  PK, no `SCOPE_IDENTITY()`) with a real `RowAudit` table, asserting the actual rows: Insert/Update (exact changed
+  columns) / Delete, no-op update writes nothing, and failed changes (missing row, duplicate-PK insert) leave no
+  audit row. Needs no SQL Server; the `Microsoft.Data.Sqlite` package is a test-only dependency.

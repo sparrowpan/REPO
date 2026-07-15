@@ -17,6 +17,7 @@ import { AppRoleLookup } from '@core/models/app-role-lookup.model';
 import { AppUserService } from '@core/services/app-user.service';
 import { LookupService } from '@core/services/lookup.service';
 import { AuthService } from '@core/services/auth.service';
+import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
 
 @Component({
   selector: 'app-user-form',
@@ -29,6 +30,7 @@ import { AuthService } from '@core/services/auth.service';
     MultiSelectModule,
     ToastModule,
     ConfirmDialogModule,
+    RowAuditBadge,
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './app-user-form.html',
@@ -51,6 +53,8 @@ export class AppUserForm implements OnInit {
 
   /** Whether the signed-in user may reset passwords — mirrors the Admin gate the API enforces. */
   protected readonly isAdmin = computed(() => this.auth.hasRole('Admin'));
+  /** The edited record's pkid for the audit-history badge (0 in add mode → no history). */
+  protected readonly auditPkid = signal(0);
 
   private pkid = 0;
 
@@ -73,6 +77,7 @@ export class AppUserForm implements OnInit {
         this.roles.set(roles);
         if (user) {
           this.pkid = user.pkid;
+          this.auditPkid.set(user.pkid);
           this.form.patchValue({
             userId: user.userId,
             userName: user.userName,

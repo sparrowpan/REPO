@@ -1,12 +1,16 @@
+using System.Data;
 using CMS.API.Infrastructure;
 using CMS.API.Models;
+using CMS.API.Services;
 using Dapper;
 
 namespace CMS.API.Repositories;
 
 /// <summary>Dapper-based data access for <see cref="Partner"/> (no EF).</summary>
-public sealed class PartnerRepository(IDbConnectionFactory connectionFactory) : IPartnerRepository
+public sealed class PartnerRepository(IDbConnectionFactory connectionFactory, RowAuditWriter audit) : IPartnerRepository
 {
+    private const string TableName = "Partner";
+
     private const string SelectColumns = """
         SELECT p.pkid, p.Name, p.AppKey, p.NameOnPartnerMenu, p.NameOnCourseDetailPage,
                p.DisplayOrder, p.ImageFilename
@@ -52,14 +56,15 @@ public sealed class PartnerRepository(IDbConnectionFactory connectionFactory) : 
     public async Task<Partner> CreateAsync(PartnerRequest request, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
+        using var tx = conn.BeginTransaction();
 
         var pkid = await conn.ExecuteScalarAsync<short>(new CommandDefinition("""
             INSERT INTO Partner (Name, AppKey, NameOnPartnerMenu, NameOnCourseDetailPage, DisplayOrder, ImageFilename)
             VALUES (@Name, @AppKey, @NameOnPartnerMenu, @NameOnCourseDetailPage, @DisplayOrder, @ImageFilename);
             SELECT CAST(SCOPE_IDENTITY() AS smallint);
-            """, request, cancellationToken: ct));
+            """, request, tx, cancellationToken: ct));
 
-        return new Partner
+        var created = new Partner
         {
             Pkid = pkid,
             Name = request.Name,
@@ -69,12 +74,25 @@ public sealed class PartnerRepository(IDbConnectionFactory connectionFactory) : 
             DisplayOrder = request.DisplayOrder,
             ImageFilename = request.ImageFilename,
         };
+
+        await audit.LogInsert(TableName, created, conn, tx, ct);
+        tx.Commit();
+        return created;
     }
 
     public async Task<bool> UpdateAsync(PartnerRequest request, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
-        var affected = await conn.ExecuteAsync(new CommandDefinition("""
+        using var tx = conn.BeginTransaction();
+
+        var before = await LoadForAuditAsync(conn, tx, request.Pkid, ct);
+        if (before is null)
+        {
+            tx.Rollback();
+            return false;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE Partner
             SET Name = @Name,
                 AppKey = @AppKey,
@@ -83,15 +101,36 @@ public sealed class PartnerRepository(IDbConnectionFactory connectionFactory) : 
                 DisplayOrder = @DisplayOrder,
                 ImageFilename = @ImageFilename
             WHERE pkid = @Pkid;
-            """, request, cancellationToken: ct));
-        return affected > 0;
+            """, request, tx, cancellationToken: ct));
+
+        var after = await LoadForAuditAsync(conn, tx, request.Pkid, ct);
+        await audit.LogUpdate(TableName, before, after!, conn, tx, ct);
+        tx.Commit();
+        return true;
     }
 
     public async Task<bool> DeleteAsync(short pkid, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
-        var affected = await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM Partner WHERE pkid = @Pkid", new { Pkid = pkid }, cancellationToken: ct));
-        return affected > 0;
+        using var tx = conn.BeginTransaction();
+
+        var existing = await LoadForAuditAsync(conn, tx, pkid, ct);
+        if (existing is null)
+        {
+            tx.Rollback();
+            return false;
+        }
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM Partner WHERE pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
+
+        await audit.LogDelete(TableName, existing, conn, tx, ct);
+        tx.Commit();
+        return true;
     }
+
+    /// <summary>Load a partner's own columns on the given connection/transaction, for audit before/after snapshots.</summary>
+    private static async Task<Partner?> LoadForAuditAsync(IDbConnection conn, IDbTransaction tx, short pkid, CancellationToken ct)
+        => await conn.QuerySingleOrDefaultAsync<Partner>(
+            new CommandDefinition($"{SelectColumns} WHERE p.pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
 }

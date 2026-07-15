@@ -15,6 +15,7 @@ import { AppRoleRequest } from '@core/models/app-role.model';
 import { AppUserLookup } from '@core/models/app-user-lookup.model';
 import { AppRoleService } from '@core/services/app-role.service';
 import { LookupService } from '@core/services/lookup.service';
+import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
 
 @Component({
   selector: 'app-role-form',
@@ -26,6 +27,7 @@ import { LookupService } from '@core/services/lookup.service';
     InputNumberModule,
     MultiSelectModule,
     ToastModule,
+    RowAuditBadge,
   ],
   providers: [MessageService],
   templateUrl: './app-role-form.html',
@@ -43,6 +45,8 @@ export class AppRoleForm implements OnInit {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly users = signal<AppUserLookup[]>([]);
+  /** The edited record's pkid for the audit-history badge (0 in add mode → no history). */
+  protected readonly auditPkid = signal(0);
 
   private pkid = 0;
 
@@ -66,6 +70,7 @@ export class AppRoleForm implements OnInit {
         this.users.set(users);
         if (role) {
           this.pkid = role.pkid;
+          this.auditPkid.set(role.pkid);
           this.form.patchValue({
             roleId: role.roleId,
             roleName: role.roleName,

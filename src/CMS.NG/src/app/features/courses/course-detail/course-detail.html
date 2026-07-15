@@ -8,6 +8,7 @@
     }
   </div>
   <div class="page-header__actions">
+    <row-audit-badge tableName="Course" [pkid]="course()?.pkid ?? 0" />
     <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="back()">
       <i class="pi pi-arrow-left"></i>&nbsp;返回
     </button>

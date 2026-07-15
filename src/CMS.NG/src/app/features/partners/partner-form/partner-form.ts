@@ -10,6 +10,7 @@ import { MessageService } from 'primeng/api';
 
 import { PartnerRequest } from '@core/models/partner.model';
 import { PartnerService } from '@core/services/partner.service';
+import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
 
 @Component({
   selector: 'partner-form',
@@ -20,6 +21,7 @@ import { PartnerService } from '@core/services/partner.service';
     InputTextModule,
     InputNumberModule,
     ToastModule,
+    RowAuditBadge,
   ],
   providers: [MessageService],
   templateUrl: './partner-form.html',
@@ -35,6 +37,8 @@ export class PartnerForm implements OnInit {
   protected readonly isEdit = signal(false);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
+  /** The edited record's pkid for the audit-history badge (0 in add mode → no history). */
+  protected readonly auditPkid = signal(0);
 
   private pkid = 0;
 
@@ -56,6 +60,7 @@ export class PartnerForm implements OnInit {
       this.service.getById(pkid).subscribe({
         next: (partner) => {
           this.pkid = partner.pkid;
+          this.auditPkid.set(partner.pkid);
           this.form.patchValue({
             name: partner.name,
             appKey: partner.appKey,
