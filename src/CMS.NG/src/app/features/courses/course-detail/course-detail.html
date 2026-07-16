@@ -12,6 +12,20 @@
     <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="back()">
       <i class="pi pi-arrow-left"></i>&nbsp;返回
     </button>
+    <button
+      pButton
+      type="button"
+      class="p-button-outlined"
+      (click)="toggleBrochure()"
+      [disabled]="!course()"
+    >
+      <i class="pi pi-file-pdf"></i>&nbsp;{{ showBrochure() ? '關閉預覽' : '課程簡介' }}
+    </button>
+    @if (showBrochure()) {
+      <button pButton type="button" class="p-button-help" (click)="printBrochure()">
+        <i class="pi pi-print"></i>&nbsp;列印
+      </button>
+    }
     <button pButton type="button" class="p-button-success" (click)="edit()" [disabled]="!course()">
       <i class="pi pi-pencil"></i>&nbsp;編輯
     </button>
@@ -21,6 +35,16 @@
 @if (loading()) {
   <div class="page-card">載入中…</div>
 } @else if (course(); as c) {
+  @if (showBrochure()) {
+    <course-brochure-print [course]="c" />
+  }
+
+  <!--
+    The admin cards leave the DOM entirely while the brochure preview is open. A print stylesheet
+    hiding them would work too, but it can regress silently — and the failure mode is a client
+    receiving a page of 主代碼 / 備註. Absence cannot regress.
+  -->
+  @if (!showBrochure()) {
   <div class="page-card">
     <h3 class="section-title">基本資料</h3>
     <dl class="detail-grid">
@@ -103,4 +127,5 @@
       <div class="detail-item detail-item--wide"><dt>其他資訊</dt><dd class="pre">{{ c.otherInfo || '—' }}</dd></div>
     </dl>
   </div>
+  }
 }

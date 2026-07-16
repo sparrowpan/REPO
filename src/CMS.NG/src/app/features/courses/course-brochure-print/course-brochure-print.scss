@@ -1,0 +1,270 @@
+// A4 geometry. `@page { size: A4; margin: 14mm 16mm }` lives in the global styles.scss — @page in a
+// component stylesheet is a ShadowCss bet — so the printable column is 210mm - 32mm = 178mm.
+$page-width: 210mm;
+$page-margin-y: 14mm;
+$page-margin-x: 16mm;
+
+:host {
+  display: block;
+}
+
+// Screen only: the rep sees an A4 preview before the print dialog, which is what makes the QR's
+// async data URL and the CJK glyphs resolve *before* printing rather than during it.
+.brochure {
+  width: $page-width;
+  max-width: 100%;
+  margin: 0 auto 1rem;
+  padding: $page-margin-y $page-margin-x;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+
+  // CJK-first. The app stack (styles.scss:9) puts 'Segoe UI' first, so Latin renders Segoe and CJK
+  // falls back per glyph — invisible at 14px, obvious in a 24pt hero.
+  font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'Segoe UI', sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.75;
+  color: #1f2a37;
+}
+
+.brochure-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.9rem;
+}
+
+.brochure__masthead {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #1f2a37;
+}
+
+// v1 ships unbranded: no logo asset exists (public/ holds favicon.ico only), so this is the same
+// CSS-drawn "U" glyph the topbar uses. Replace both when a real mark is sourced.
+.brochure__brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+  background: #1f2a37;
+  color: #fff;
+  font-weight: 700;
+}
+
+.brochure__brand-name {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.brochure__hero {
+  margin: 1.5rem 0;
+}
+
+.brochure__title {
+  margin: 0;
+  font-size: 24pt;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.brochure__official {
+  margin: 0.4rem 0 0;
+  font-size: 12pt;
+  color: #64748b;
+}
+
+.brochure__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.brochure__fact--wide {
+  grid-column: 1 / -1;
+}
+
+.brochure__fact-label {
+  display: block;
+  font-size: 9pt;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.brochure__fact-value {
+  font-size: 12pt;
+  font-weight: 600;
+}
+
+.brochure__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.brochure__chip {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 9pt;
+  font-weight: 600;
+}
+
+.brochure__chip--cert {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.brochure__chip--job {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.brochure__section {
+  margin: 1.25rem 0;
+}
+
+.brochure__heading {
+  margin: 0 0 0.4rem;
+  padding-left: 0.5rem;
+  border-left: 3px solid #1f2a37;
+  font-size: 13pt;
+  line-height: 1.5;
+}
+
+.brochure__prose {
+  // 38 CJK characters at 1em each — the upper end of a comfortable measure. The printable column is
+  // 178mm, which would run to ~50 characters unchecked.
+  max-width: 38em;
+
+  :where(ul, ol) {
+    margin: 0.3rem 0;
+    padding-left: 1.5rem;
+  }
+
+  :where(p) {
+    margin: 0 0 0.5rem;
+  }
+}
+
+.brochure__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #cbd5e1;
+}
+
+.brochure__contact-label {
+  margin: 0;
+  font-size: 9pt;
+  color: #64748b;
+}
+
+.brochure__contact-name {
+  margin: 0.1rem 0 0.6rem;
+  font-size: 12pt;
+  font-weight: 600;
+}
+
+.brochure__generated,
+.brochure__latest {
+  margin: 0;
+  font-size: 9pt;
+  color: #64748b;
+}
+
+.brochure__qr {
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.brochure__qr-label {
+  margin: 0.2rem 0 0;
+  font-size: 9pt;
+  color: #64748b;
+}
+
+// `course-qr-code` is an admin affordance being reused in a client document. Its CourseId caption
+// (簡介代碼 — an excluded admin field) and its download button have no business on a brochure.
+// ::ng-deep is correct here and nowhere else in this file: those nodes carry the QR component's own
+// encapsulation attribute, so an ordinary descendant selector would never match them.
+.brochure__qr ::ng-deep {
+  .qr__title,
+  button {
+    display: none;
+  }
+
+  .qr__image {
+    width: 96px;
+    height: 96px;
+  }
+}
+
+@media print {
+  .brochure-warning {
+    display: none;
+  }
+
+  .brochure {
+    // @page owns the margins now; a second copy here would double them.
+    width: auto;
+    margin: 0;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  // Browsers drop background graphics in print by default, which would render the credibility
+  // markers as plain black text. The -webkit- prefix is still required in Chrome and Edge.
+  .brochure__chip,
+  .brochure__facts,
+  .brochure__brand {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  // Stranded headings and split sections are the default without these.
+  .brochure__section,
+  .brochure__facts,
+  .brochure__footer {
+    break-inside: avoid;
+  }
+
+  .brochure__heading {
+    break-after: avoid;
+  }
+
+  // 課程大綱 runs past 4,000 characters on 48 courses — it must be allowed to paginate.
+  .brochure__section--outline {
+    break-inside: auto;
+  }
+
+  .brochure__hero {
+    break-after: avoid;
+  }
+
+  // ~224 anchors are embedded in operator-authored prose. On paper a link is dead text, so keep the
+  // label and drop the affordance; the QR code is how the reader reaches the live page.
+  .brochure__prose a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

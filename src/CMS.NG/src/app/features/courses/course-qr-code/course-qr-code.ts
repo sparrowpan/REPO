@@ -4,6 +4,15 @@ import { ButtonModule } from 'primeng/button';
 import QRCode from 'qrcode';
 
 /**
+ * The public course page on the main site — a different system to this CMS, and the only
+ * course URL a client can actually open. Shared with the brochure, which prints it as the
+ * 「最新版本」 footer alongside the QR code encoding the same address.
+ */
+export function publicCourseUrl(pkid: number, courseId: string): string {
+  return `https://www.uuu.com.tw/Course/Show/${pkid}/${courseId}`;
+}
+
+/**
  * Renders a downloadable QR code for a course. The encoded target is the public
  * course page — `https://www.uuu.com.tw/Course/Show/{pkid}/{courseId}` — and the
  * CourseId is shown as the title above it.
@@ -21,9 +30,7 @@ export class CourseQrCode {
   readonly courseId = input.required<string>();
 
   /** Public course page the QR code points at. */
-  readonly url = computed(
-    () => `https://www.uuu.com.tw/Course/Show/${this.pkid()}/${this.courseId()}`,
-  );
+  readonly url = computed(() => publicCourseUrl(this.pkid(), this.courseId()));
 
   /** PNG data URL of the rendered QR code (empty until the first render resolves). */
   protected readonly dataUrl = signal('');

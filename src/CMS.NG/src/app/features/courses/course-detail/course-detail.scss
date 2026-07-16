@@ -77,3 +77,26 @@
   flex-wrap: wrap;
   gap: 0.4rem;
 }
+
+// The admin cards are removed from the DOM while the brochure preview is open (see the template),
+// so what is left to suppress here is the chrome that stays interactive on screen: the toolbar —
+// which carries 返回 / 編輯 / 列印 and the row-audit-badge — and the toast outlet.
+//
+// These selectors target this component's own elements, so ordinary component scoping reaches them.
+// The app shell (.layout / .content / .topbar / .sidebar) is a different matter: it is an ancestor,
+// and under emulated encapsulation nothing written here can touch it. That undo lives in the global
+// styles.scss and has to.
+@media print {
+  .page-header,
+  p-toast {
+    display: none;
+  }
+
+  .page-card {
+    margin: 0;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+}

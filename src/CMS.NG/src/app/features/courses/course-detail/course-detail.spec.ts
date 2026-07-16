@@ -3,6 +3,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angul
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { Title } from '@angular/platform-browser';
 import { of } from 'rxjs';
 
 import { CourseDetail } from './course-detail';
@@ -52,6 +53,10 @@ describe('CourseDetail', () => {
     fixture.detectChanges();
   });
 
+  function element(): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
+  }
+
   it('loads the course by id from the route', () => {
     expect(serviceSpy.getById).toHaveBeenCalledWith(1);
     expect(component['course']()?.title).toBe('AZ-900 基礎課程');
@@ -68,5 +73,67 @@ describe('CourseDetail', () => {
     const navSpy = spyOn(router, 'navigate');
     component.edit();
     expect(navSpy).toHaveBeenCalledWith(['/courses', 1, 'edit']);
+  });
+
+  describe('課程簡介 brochure', () => {
+    function toggle(): void {
+      component.toggleBrochure();
+      fixture.detectChanges();
+    }
+
+    it('is absent until the rep asks for it', () => {
+      expect(element().querySelector('course-brochure-print')).toBeNull();
+    });
+
+    it('replaces the admin cards when the preview opens', () => {
+      toggle();
+
+      expect(element().querySelector('course-brochure-print')).not.toBeNull();
+      // Not merely hidden — gone. A print rule can regress silently; absence cannot.
+      expect(element().textContent).not.toContain('主代碼');
+      expect(element().textContent).not.toContain('網址代稱');
+    });
+
+    it('restores the admin cards when the preview closes', () => {
+      toggle();
+      toggle();
+
+      expect(element().querySelector('course-brochure-print')).toBeNull();
+      expect(element().textContent).toContain('主代碼');
+    });
+
+    // T4
+    it('列印 calls window.print()', () => {
+      const printSpy = spyOn(window, 'print');
+      toggle();
+
+      element()
+        .querySelectorAll('button')
+        .forEach((b) => {
+          if (b.textContent?.includes('列印')) b.click();
+        });
+
+      expect(printSpy).toHaveBeenCalled();
+    });
+
+    // T5 — Chrome's Save-as-PDF filename is document.title
+    it('names the document for the Save-as-PDF filename', () => {
+      spyOn(window, 'print');
+      component.printBrochure();
+
+      expect(TestBed.inject(Title).getTitle()).toBe('課程簡介_AZ-900 基礎課程');
+    });
+
+    it('restores the original title on destroy, so it cannot leak to other routes', () => {
+      const title = TestBed.inject(Title);
+      const original = title.getTitle();
+      spyOn(window, 'print');
+
+      component.printBrochure();
+      expect(title.getTitle()).toBe('課程簡介_AZ-900 基礎課程');
+
+      fixture.destroy();
+      expect(title.getTitle()).toBe(original);
+    });
   });
 });

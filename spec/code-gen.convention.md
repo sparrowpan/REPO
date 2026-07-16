@@ -24,6 +24,10 @@ CLAUDE.md carries only a short summary — the detail lives here.
   ### Tests
   - `CmsApiFactory` (`WebApplicationFactory<Program>`) swaps the repo for an in-memory fake — no SQL Server needed
     (`Program.cs` exposes `public partial class Program`). One `Fake{Table}Repository.cs` + `{Table}sControllerTests.cs` per feature.
+  - `CmsApiFactory.CustomizeServices` re-overrides one service for a single test (e.g. a repo that throws — see
+    the ErrorHandling section of `features.md`).
+  - Protected endpoints: `CmsApiFactory.CreateAuthenticatedClient()` (pass role names for role-gated cases),
+    not `CreateClient()`.
 
 ## Frontend
 

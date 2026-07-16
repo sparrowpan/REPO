@@ -1,0 +1,115 @@
+@if (course(); as c) {
+  @if (missingRequired().length) {
+    <p class="brochure-warning" role="alert">
+      <i class="pi pi-exclamation-triangle"></i>
+      這份簡介缺少 {{ missingRequired().join('、') }}，建議補齊後再送給客戶。
+    </p>
+  }
+
+  <article class="brochure">
+    <header class="brochure__masthead">
+      <span class="brochure__brand">U</span>
+      <span class="brochure__brand-name">課程簡介</span>
+    </header>
+
+    <section class="brochure__hero">
+      <h1 class="brochure__title">{{ c.title }}</h1>
+      @if (officialTitle(); as official) {
+        <p class="brochure__official" [innerHTML]="official"></p>
+      }
+    </section>
+
+    <section class="brochure__facts">
+      @if (c.partner; as partner) {
+        <div class="brochure__fact">
+          <span class="brochure__fact-label">原廠</span>
+          <span class="brochure__fact-value">{{ partner.name }}</span>
+        </div>
+      }
+      <div class="brochure__fact">
+        <span class="brochure__fact-label">時數</span>
+        <span class="brochure__fact-value">{{ c.hour }} 小時</span>
+      </div>
+      @if (c.certifications.length) {
+        <div class="brochure__fact brochure__fact--wide">
+          <span class="brochure__fact-label">對應認證</span>
+          <span class="brochure__chips">
+            @for (ct of c.certifications; track ct.pkid) {
+              <span class="brochure__chip brochure__chip--cert">{{ ct.title }}</span>
+            }
+          </span>
+        </div>
+      }
+    </section>
+
+    @if (target(); as value) {
+      <section class="brochure__section">
+        <h2 class="brochure__heading">適合對象</h2>
+        <div class="brochure__prose" [innerHTML]="value"></div>
+      </section>
+    }
+
+    @if (prerequisites(); as value) {
+      <section class="brochure__section">
+        <h2 class="brochure__heading">先修條件</h2>
+        <div class="brochure__prose" [innerHTML]="value"></div>
+      </section>
+    }
+
+    @if (objective(); as value) {
+      <section class="brochure__section">
+        <h2 class="brochure__heading">課程目標</h2>
+        <div class="brochure__prose" [innerHTML]="value"></div>
+      </section>
+    }
+
+    @if (outline(); as value) {
+      <section class="brochure__section brochure__section--outline">
+        <h2 class="brochure__heading">課程大綱</h2>
+        <div class="brochure__prose" [innerHTML]="value"></div>
+      </section>
+    }
+
+    @if (material(); as value) {
+      <section class="brochure__section">
+        <h2 class="brochure__heading">教材</h2>
+        <div class="brochure__prose" [innerHTML]="value"></div>
+      </section>
+    }
+
+    @if (towardCertOrExam(); as value) {
+      <section class="brochure__section">
+        <h2 class="brochure__heading">對應認證／考試</h2>
+        <div class="brochure__prose" [innerHTML]="value"></div>
+      </section>
+    }
+
+    @if (c.jobCategories.length) {
+      <section class="brochure__section">
+        <h2 class="brochure__heading">職務類別</h2>
+        <span class="brochure__chips">
+          @for (j of c.jobCategories; track j.pkid) {
+            <span class="brochure__chip brochure__chip--job">{{ j.description }}</span>
+          }
+        </span>
+      </section>
+    }
+
+    <footer class="brochure__footer">
+      <div class="brochure__contact">
+        @if (repName(); as name) {
+          <p class="brochure__contact-label">您的專屬顧問</p>
+          <p class="brochure__contact-name">{{ name }}</p>
+        }
+        <p class="brochure__generated">
+          製作日期 {{ generatedOn | date: 'yyyy/MM/dd' }}
+        </p>
+        <p class="brochure__latest">最新版本：{{ publicUrl() }}</p>
+      </div>
+      <div class="brochure__qr">
+        <course-qr-code [pkid]="c.pkid" [courseId]="c.courseId" />
+        <p class="brochure__qr-label">查看最新開課資訊</p>
+      </div>
+    </footer>
+  </article>
+}

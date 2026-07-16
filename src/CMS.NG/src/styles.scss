@@ -23,3 +23,57 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+/*
+ * Print: undo the app shell so the document can paginate.
+ *
+ * The window does not scroll in this app — `.content` and `.sidebar` are each their own bounded
+ * scroll region (`app.scss:270`). Browsers paginate document flow, so a bounded-height overflow
+ * container prints its first viewport and silently clips the rest. `Outline` runs past 4,000
+ * characters on 48 courses, so this is a routine failure, not an edge case.
+ *
+ * `!important` is load-bearing, not laziness. `app.ts` declares `styleUrl: './app.scss'` with no
+ * encapsulation override, so `.content` compiles to `.content[_ngcontent-xxx]` — specificity
+ * (0,2,0). The rule below is (0,1,0), and `@media` contributes nothing to specificity, so without
+ * `!important` the component rule wins and this whole block silently does nothing. The alternative
+ * was `ViewEncapsulation.None` on `App`, which would make every rule in app.scss global.
+ *
+ * This has to be global for the same reason: these are ancestors of every routed component, and no
+ * component stylesheet can reach them. `::ng-deep` only pierces downward.
+ */
+@media print {
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* `overflow`, not `overflow-y` — .content sets overflow-x too (app.scss:279). */
+  .content {
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .layout {
+    display: block !important;
+    height: auto !important;
+  }
+
+  .sidebar,
+  .topbar {
+    display: none !important;
+  }
+}
+
+@page {
+  size: A4;
+  /*
+   * A non-zero margin is what gives pages 2+ their top margin — `margin: 0` suppresses the browser's
+   * own headers and footers but takes the page-2 margin with it, and body padding only fixes page
+   * one. The trade is that Chrome draws its header/footer; a rep can untick "Headers and footers"
+   * once and Chrome remembers.
+   */
+  margin: 14mm 16mm;
+}

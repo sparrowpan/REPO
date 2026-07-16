@@ -175,7 +175,8 @@ Cross-cutting audit trail: every business-table Insert / Update / Delete writes 
 - **Change detection compares scalar (column-like) properties only** — primitives, enums, `string`, `decimal`,
   `DateTime`/`DateOnly`/`TimeOnly`, `Guid`, and their nullables. Navigation objects, collections (n-n id/label
   lists), and derived counts are ignored (they reference-compare unequal and aren't real columns).
-- **Repository wiring pattern** (all seven CRUD repos: AppRole, AppUser, PublishStatus, Partner, CourseGroup,
+- **Repository wiring pattern** — **copy `Repositories/AppRoleRepository.cs`**, the reference implementation.
+  Across all seven CRUD repos (AppRole, AppUser, PublishStatus, Partner, CourseGroup,
   Course, FeaturedPromoItem): each Create/Update/Delete runs in a transaction. Insert → load the new row
   *inside the tx* (a post-commit reload can't see it yet) → `LogInsert` → commit. Update → load `before`
   (scalar snapshot) → apply → load `after` → `LogUpdate` → commit; returns `false` (rolled back) if the row is
@@ -230,6 +231,9 @@ list/detail/form feature — middleware on the backend, interceptor policy on th
   `message` is always the constant `ErrorResponse.GenericMessage`; **stack traces, SQL, and connection
   strings never cross the wire.** `traceId` is `Activity.Current?.Id` (the W3C traceparent), so a user's
   report maps to the logged exception.
+- **Because the middleware handles them, controllers write no try/catch for *unexpected* errors** and never
+  return raw exception text — let it escape and the middleware does the rest. Catch only what you can improve
+  on for the caller (400, 409).
 - **Being registered first also puts it *inside* the Developer Exception Page** that minimal hosting adds
   automatically in Development — an exception unwinds to the innermost handler, so this middleware answers
   the client in every environment. Tests rely on that (`CmsApiFactory` forces `Development`).
@@ -263,3 +267,104 @@ list/detail/form feature — middleware on the backend, interceptor policy on th
   Frontend: `auth.interceptor.spec.ts` (500 toasts the safe message + no redirect, 503 too, fallback when the
   body has no message, HTML body never rendered, 401 redirects + does not toast, 400/409 do not toast) and
   `app.spec.ts` (toast host renders when signed out).
+
+## CourseBrochure (課程簡介) — client-facing print document
+
+Frontend-only. **No API surface, no route, no service call** — the brochure renders from the `Course`
+`course-detail` has already loaded. `course-qr-code` is the precedent for this shape.
+
+- **Files** — `features/courses/course-brochure-print/` (`.ts` / `.html` / `.scss` / `.spec.ts`) +
+  `core/utils/prose-html.util.ts`. Touches `course-detail.{ts,html,scss}`, `course-qr-code.ts`
+  (extracted `publicCourseUrl()`), and **global `styles.scss`**.
+- **Flow** — 課程簡介 in `.page-header__actions` toggles an on-screen **A4 preview**; a 列印 button then
+  calls `window.print()`. Printing is deliberately gated on the preview: the brochure is only in the DOM
+  while it is open, so the QR code's async data URL and the CJK glyphs resolve *before* the print dialog
+  (a print-only `display:none` component would race both), and Ctrl+P with the preview closed behaves
+  exactly as it did before this feature.
+- **The admin cards leave the DOM** while the preview is open (`@if (!showBrochure())`) rather than being
+  hidden by a print rule. A CSS hide regresses silently and the failure mode is a client receiving a page
+  of 主代碼 / 備註. `.page-header` + `p-toast` stay mounted for on-screen use and are hidden via
+  `@media print` in `course-detail.scss`.
+
+### Prose is not plain text — `core/utils/prose-html.util.ts`
+
+Measured against the live catalogue (1,085 courses): **~10-13% of prose values carry benign HTML** —
+`Objective` 137/1082, `Outline` 112/1082, `TowardCertOrExam` 82/924, with ~224 `<a>` in total. There is
+**no `<script>`, `<img>`, `<table>` or `<span>` anywhere**. The rest is plain text whose only structure is
+newlines. `course-detail` renders all of it with `white-space: pre-wrap`, so the admin page shows operators
+literal `<br />` and `<a href>` tags — harmless there, unacceptable in a client document.
+
+`toProseHtml(value)` returns HTML for `[innerHTML]`, or `null` meaning **omit the section entirely**:
+- tag-bearing → passed through for Angular's `DomSanitizer` to strip at bind time. **Never
+  `bypassSecurityTrustHtml`** — the sanitizer is the whole safety story.
+- plain text → escaped **first** (`&` before the rest), then `\n` → `<br>`.
+- **Absence is tested by content, never by length.** 639 of 1,076 `Material` values are under ten
+  characters and every one is real, so a minimum-length rule would delete most of that column. Five
+  courses do hold placeholder junk in `Outline` ("Test", "string", "00") — a data-quality issue, not
+  something the renderer guesses at.
+
+### The print cascade — three stylesheets, one surface
+
+- **`styles.scss` (global) — the shell-undo, and `!important` is load-bearing.** `app.ts` sets
+  `styleUrl: './app.scss'` with no encapsulation override, so `.content` compiles to
+  `.content[_ngcontent-%COMP%]` — **(0,2,0)**. A global `.content` print rule is (0,1,0) and `@media`
+  adds no specificity, so **without `!important` the block silently does nothing** and a multi-page
+  brochure clips to the first viewport. Override `overflow` (shorthand) — `.content` sets **both**
+  `overflow-y` and `overflow-x`. This cannot live in a component stylesheet: `.layout` / `.content` /
+  `.topbar` / `.sidebar` are ancestors, and `::ng-deep` only pierces downward.
+- **`@page { size: A4; margin: 14mm 16mm }`** in `styles.scss` (not a component — `@page` there is a
+  ShadowCss bet). Non-zero margin is what gives pages 2+ their top margin; `margin: 0` suppresses the
+  browser's headers/footers but takes the page-2 margin with it. Trade-off: Chrome draws its own
+  header/footer until the rep unticks it once.
+- **`course-brochure-print.scss`** — `break-inside: avoid` on sections (but `auto` on 課程大綱: 48 courses
+  exceed 2,000 chars and it *must* paginate), `break-after: avoid` on headings,
+  **`-webkit-print-color-adjust: exact`** (the prefix is required) on chips/panels or browsers drop the
+  backgrounds and the credibility markers print as plain black text. Anchors print as inherited-colour
+  text — a link is dead on paper, so the label stays and the affordance goes; the QR is the way back.
+  CJK-first font stack + 10.5pt / 1.75 leading / 38em measure, because the app stack (`styles.scss:9`)
+  puts `Segoe UI` first and CJK would fall back per glyph.
+- **`::ng-deep` is used once, correctly**: `course-qr-code`'s CourseId caption (an excluded admin field)
+  and download button are hidden inside the brochure. Those nodes carry the QR component's own
+  encapsulation attribute, so a plain descendant selector would never match.
+
+### Content contract
+
+**Included** — `title`, `officialTitle`, `objective`, `target`, `prerequisites`, `outline`, `material`,
+`towardCertOrExam`, `hour`, `certifications[]`, `jobCategories[]`, `partner.name`, rep name
+(`AuthService.userName` — free from the session; **email/phone are not on `AuthProfile`**).
+**Excluded (admin)** — `pkid`, `displayOrder`, `courseId`, `prodCourseId`, `friendlyUrl`, `publishStatus`,
+`scheduleOn`, `scheduleOff`, `courseGroup`, `row-audit-badge`.
+**Excluded (unresolved)** — `note`, `otherInfo`, `listPrice`, `learningCredit`, `canRepeat`.
+**Adding a field here is a decision, not a default.**
+
+Sections are ordered for the reader, not the admin DOM: hero → 原廠 → 時數/對應認證 → 適合對象/先修條件
+→ 課程目標 → 課程大綱 → 教材 → 對應認證考試 → 職務類別 → rep + QR footer. Required set is
+課程名稱/課程目標/課程大綱/時數; missing any raises a **screen-only** warning banner (hidden in print).
+
+### Cross-cutting
+
+- **RowAudit — no exception claimed.** The brochure does no Insert/Update/Delete and is not a page;
+  `course-detail` keeps its badge and the print rule hides it. (An earlier design claimed an exception
+  here; it never needed one.)
+- **Auth** — no new route, so no `authGuard` entry. **ErrorHandling** — no new error path; the brochure
+  renders only inside `@if (course(); as c)` and inherits `course-detail`'s load/404/5xx handling.
+- Tests — `course-brochure-print.spec.ts` (contract fields render, admin fields absent, NULL/whitespace
+  omits the whole section with no `—`, required-field warning, markup renders as structure, `<script>` is
+  sanitized, plain-text newlines survive, rep + public URL) on a **complete 33-field `Course` fixture** —
+  `course-detail.spec.ts`'s `as unknown as Course` leaves **19 fields undefined**, so a brochure bound to
+  it would render `undefined` while the suite stayed green. **Do not copy that cast.**
+  `prose-html.util.spec.ts` (both branches + the length trap). `course-detail.spec.ts` adds preview
+  toggling, admin cards leaving the DOM, 列印 → `window.print()`, and the title being set for Chrome's
+  Save-as-PDF filename **and restored on destroy** (otherwise it leaks to every later route).
+- **Known gaps** — v1 is **unbranded** (no logo asset; `public/` holds only `favicon.ico`; a bundled CJK
+  webfont would fail `angular.json`'s 1MB `initial` budget). **Print CSS has no standing automated
+  coverage** — Karma cannot emulate print media. P1/P2/P3 (admin DOM hidden, shell-undo specificity,
+  multi-page no clip) were **manually verified 2026-07-16** via `/browse` PDF generation against live
+  data: course 3334 (`Outline` 4,413 chars) printed **7 A4 pages** and 3233 (bare-`<li>` markup, 3,277
+  chars) printed **3** — both would be a single clipped page if the `!important` shell-undo had lost to
+  `.content[_ngcontent]`'s (0,2,0). CJK rendered with no 豆腐 and chip/panel backgrounds survived. There
+  is still **no committed print-media test**; a regression in the cascade would ship silently. The
+  content contract is
+  **unvalidated** — no rep was asked what they actually send a client. And the brochure structurally
+  **cannot state when the course runs, where, or what it costs this client**: `course.sql` has no
+  session/class-date table, `TrainingCenter` has no FK to Course, and `ListPrice` is a catalog price.
