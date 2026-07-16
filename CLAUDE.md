@@ -1,7 +1,8 @@
 # CLAUDE.md
 
-Guidance for working in this repository. **Keep this file lean — it loads every session.** Detail belongs in
-the reference files below; add it there and point to it from here rather than restating it.
+Guidance for working in this repository. **Keep this file lean — it loads every session.** It is an index,
+not a manual: detail belongs in the reference files below. Add it there and point to it from here rather
+than restating it — a fact in two places drifts out of sync.
 
 ## Overview
 
@@ -20,8 +21,8 @@ src/
 
 | File | Read it for |
 |------|-------------|
-| **`spec/code-gen.convention.md`** | Full backend/frontend conventions, special column types, endpoint table, app-shell gotchas. **Before adding or editing any feature.** |
-| **`spec/features.md`** | As-built notes per feature, incl. the full **Auth**, **RowAudit**, **ErrorHandling** sections. **The section for the feature you touch.** |
+| **`spec/code-gen.convention.md`** | The complete backend/frontend convention: per-table file layout, endpoint table, special column types, list/form/app-shell gotchas, test harness. **Before adding or editing any feature.** |
+| **`spec/features.md`** | As-built notes per feature, plus the full **RowAudit**, **ErrorHandling**, and **Auth** cross-cutting sections. **Read the section for the feature you touch — and the cross-cutting section for any rule below that your change trips.** |
 | **`spec/custom/{Table}/`** | Specs + mockups for features that break the list/detail/form triad (e.g. FeaturedPromoItem's weekly board). |
 | `spec/{schema}/{Table}.md`, `spec/feature-spec.template.md` | Per-feature build specs and the template. |
 | `database/*.sql` | Source-of-truth schema (`auth`, `admin`, `course`, `promotion`). |
@@ -41,61 +42,43 @@ npm test                                              # CI: npx ng test --watch=
   (`Server=.\SQLEXPRESS;Database=CMS;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False`).
 - CORS allows any loopback origin (dev). API listens on port 5000 via `launchSettings.json`.
 
-## Conventions — summary only
+## Building a feature
 
-**Full detail + gotchas in `spec/code-gen.convention.md`. Read it before adding or editing a feature.**
+**AppRole is the reference feature — copy its structure for new tables.** Read
+**`spec/code-gen.convention.md`** first; it carries the whole convention. The shape, for orientation only:
 
-**Backend** — Dapper only, async; connections via `IDbConnectionFactory`; `RTRIM()` nchar. Per table:
-`{Table}.cs` / `{Table}Request.cs` / `{Table}Query.cs` + repo interface/impl in `Repositories/` (DI in
-`Program.cs`). Routes `/api/{plural}`: `GET`, `POST /query`, `GET /{id}`, `POST`, `PUT` (key in body),
-`DELETE /{id}`; lookups `GET /api/lookups/{plural}`. n-n = delete-then-reinsert in a transaction.
+- **Backend** — Dapper only, async; connections via `IDbConnectionFactory`. Per table: `{Table}.cs` /
+  `{Table}Request.cs` / `{Table}Query.cs` + repo interface/impl in `Repositories/` (DI in `Program.cs`).
+  Routes `/api/{plural}`; lookups `GET /api/lookups/{plural}`.
+- **Frontend** — standalone + signals; lazy `loadComponent` routes; providers in `app.config.ts`; aliases
+  `@env`/`@core`/`@features`. Folders `features/{plural}/{table}-list|-detail|-form/`.
 
-**Frontend** — standalone + signals; lazy `loadComponent` routes; providers in `app.config.ts`; aliases
-`@env`/`@core`/`@features`. Folders `features/{plural}/{table}-list|-detail|-form/`. List = `p-table` +
-filter `p-drawer` (sessionStorage-persisted); form = Reactive Forms + `forkJoin` lookups. Four gotchas will
-bite you if you don't read the reference: opt-in list inline edit, sticky form toolbar, the
-window-doesn't-scroll app shell, Ultima sidebar theming.
+Five things will bite you if you skip the reference: opt-in list inline edit, the sticky form toolbar, the
+window-doesn't-scroll app shell, Ultima sidebar theming, and — for anything printed — the global `@media
+print` shell-undo in `styles.scss`, which needs `!important` to beat `.content`'s component-scoped
+`(0,2,0)` rule (skip it and multi-page output silently clips to one viewport; see CourseBrochure in
+features.md).
 
-**Tests** — `CmsApiFactory` swaps the repo for an in-memory fake (no SQL Server); its `CustomizeServices`
-hook re-overrides one service for a single test (e.g. a repo that throws).
+When you finish a feature, append its as-built section to `spec/features.md` and add a row to the table below.
 
 ## Cross-cutting rules — every feature, no exceptions
 
-Not optional, not per-feature decisions, and easy to get silently wrong. Each has a full section of the same
-name in `spec/features.md` — read it when you need the why or the edge cases.
+Not optional, not per-feature decisions, and easy to get **silently** wrong. These lines are the trigger, not
+the rule — each has a full section of the same name in `spec/features.md`. **Read that section before you
+touch the area.**
 
-**RowAudit** — every CRUD repo's Insert/Update/Delete writes one audit row via `Services/RowAuditWriter.cs`
-(`LogInsert` / `LogUpdate` / `LogDelete`). Copy `Repositories/AppRoleRepository.cs`.
-- Pass the operation's **own `conn` + `tx`** — a rolled-back change must leave no audit row.
-- **Update**: load `before` first. **Delete**: load the row first — its first string column is the description,
-  and after the delete there is nothing to read.
-- Repos whose SELECT has nav joins/count subqueries need an own-columns-only `AuditSelectColumns` for snapshots.
-- Never insert `pkid` (IDENTITY). `ActionDesc` / `PrimaryKeyValues` / `UserName` are the writer's job — don't hand-roll.
-- **Every detail + form page**: `<row-audit-badge tableName="{Table}" [pkid]="…" />` first inside
-  `<div class="page-header__actions">` — detail `record()?.pkid ?? 0`; form an `auditPkid` signal, 0 in add mode.
-
-**ErrorHandling** — `Middleware/ExceptionHandlingMiddleware.cs` (registered first in `Program.cs`) turns any
-unhandled exception into one generic `{ message, traceId }` 500 and logs the real detail server-side.
-- No per-controller try/catch for unexpected errors; never return raw exception text.
-- Leave 401/403/validation-400 alone — they don't throw, so they pass through.
-- `authInterceptor` owns the **single** 5xx toast (and 401→`/login`). So every component `error:` handler must
-  run its state cleanup, then `if (isServerError(err)) return;` (`@core/utils/http-error.util`) before its own
-  `messages.add(...)` — otherwise one failure toasts twice. Handle only what you can improve on (400, 409).
-
-**Auth** — a global `RequireAuthenticatedUser` fallback protects **every controller by default**; add
-`[AllowAnonymous]` only per-*action*, for genuinely public endpoints.
-- **Every new feature route needs `canActivate: [authGuard]`** (`@core/guards/auth.guard`); only `login` is public.
-- Bearer interceptor is automatic — services need no auth code. Read profile/roles from `AuthService` (session
-  storage), never a new API call; gate Admin UI on `auth.hasRole('Admin')`.
-- Backend tests hit protected endpoints via `CmsApiFactory.CreateAuthenticatedClient()` (pass role names for
-  role-gated cases), not `CreateClient()`.
-- Password hashing/complexity, act-on-your-own-record endpoints (id from JWT, never the body), and the
-  no-hash-over-the-wire rule: see the Auth section of `spec/features.md`.
+- **RowAudit** — every CRUD repo's Insert/Update/Delete writes one audit row via `Services/RowAuditWriter.cs`,
+  passing the operation's **own `conn` + `tx`** (a rolled-back change must leave no audit row). Update and
+  Delete must load the row *before* the change. Every detail + form page carries `<row-audit-badge>`.
+- **ErrorHandling** — `Middleware/ExceptionHandlingMiddleware.cs` turns any unhandled exception into one
+  generic 500, so controllers need no try/catch for unexpected errors. `authInterceptor` owns the **single**
+  5xx toast, so every component `error:` handler must `if (isServerError(err)) return;`
+  (`@core/utils/http-error.util`) before its own `messages.add(...)` — or one failure toasts twice.
+- **Auth** — a global `RequireAuthenticatedUser` fallback protects **every controller by default**;
+  `[AllowAnonymous]` goes on genuinely public *actions* only. **Every new feature route needs
+  `canActivate: [authGuard]`.** Read profile/roles from `AuthService`, never a new API call.
 
 ## Implemented features
-
-**AppRole is the reference feature — copy its structure for new tables.** When you finish a feature, append its
-as-built section to `spec/features.md` and add a row here.
 
 | Feature | 中文 | Routes | Schema | Notes |
 |---------|------|--------|--------|-------|
@@ -103,6 +86,7 @@ as-built section to `spec/features.md` and add a row here.
 | AppUser | 使用者 | `/app-users` | `auth.sql` | String PK `UserId`; n-n with AppRole; backend-only `PasswordHash`; Admin-only `POST …/reset-password` |
 | FeaturedPromoItem | 上稿作業 | `/featured-promo-items` | `promotion.sql` | **Custom** weekly board (center × Mon–Sun × 3 slots), not the triad; slot `/move`; spec in `spec/custom/` |
 | Auth | 登入 | `/login`, `/profile`, `POST /api/Auth/*` | `auth.sql` | Login + JWT authorization end-to-end; My Profile + Change Password |
+| CourseBrochure | 課程簡介 | — (on `/courses/:id`) | `course.sql` | **Print document**, no API/route. A4 preview + `window.print()`. Prose is ~10% HTML — render via `@core/utils/prose-html.util`, never `pre-wrap`. Print needs the **global** shell-undo in `styles.scss` (`!important` — see features.md) |
 | RowAudit | 異動記錄 | `GET /api/rowaudit` | `dbo.RowAudit` | **Cross-cutting** — see the rules above |
 | ErrorHandling | 錯誤處理 | — (middleware + interceptor) | — | **Cross-cutting** — see the rules above |
 
