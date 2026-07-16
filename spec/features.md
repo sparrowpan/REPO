@@ -193,13 +193,17 @@ Cross-cutting audit trail: every business-table Insert / Update / Delete writes 
   `Models/RowAuditEntry.cs`; `ORDER BY [DateTime] DESC, pkid DESC` (pkid tiebreaker for same-timestamp rows).
   Protected by the global auth policy like every other controller.
 - **Reusable `RowAuditBadge`** (`core/components/row-audit-badge/`, selector `row-audit-badge`): a standalone
-  toolbar badge with inputs `tableName` + `pkid`. On load it fetches the trail (`core/services/row-audit.service.ts`)
-  and shows the **latest** change inline on the badge (`{ActionType} by {UserName} · {date}`); clicking opens a
+  badge with inputs `tableName` + `pkid`. An `effect` (re)fetches the trail (`core/services/row-audit.service.ts`)
+  whenever the target record changes — so a form that loads its record after init works — and shows the
+  **latest** change inline on the badge (`{ActionType} by {UserName} · {date}`); clicking opens a
   `p-dialog` listing the full trail newest-first. Neutral "no history" state when the trail is empty or `pkid` is
-  falsy (an unsaved new record) — the latter skips the fetch. Placed in the `page-header__actions` toolbar of
-  **every** detail and form page (AppRole, AppUser, PublishStatus, Partner, CourseGroup, Course), passing that
-  page's table name and the current record's pkid (detail: `record()?.pkid ?? 0`; form: an `auditPkid` signal set
-  on edit-load, 0 in add mode).
+  falsy (an unsaved new record) — the latter skips the fetch. Its own `error:` handler clears state silently;
+  the interceptor owns the toast (see ErrorHandling). Placed **first inside**
+  `<div class="page-header__actions">` — a plain div, **not** a PrimeNG toolbar slot — on **every** detail and
+  form page (AppRole, AppUser, PublishStatus, Partner, CourseGroup, Course), passing that page's table name and
+  the current record's pkid (detail: `record()?.pkid ?? 0`; form: an `auditPkid` signal set on edit-load, 0 in
+  add mode). Example — `app-role-detail.html`:
+  `<row-audit-badge tableName="AppRole" [pkid]="role()?.pkid ?? 0" />`.
 - Tests — backend: `RowAuditControllerTests.cs` (5: filters by tableName + pkid newest-first, excludes a
   same-pkid different-table row, empty trail → `[]`, missing tableName → `400`, no token → `401`) +
   `Fakes/FakeRowAuditRepository.cs` (seeds out-of-order rows across tables/pkids). Frontend:
@@ -213,3 +217,49 @@ Cross-cutting audit trail: every business-table Insert / Update / Delete writes 
   PK, no `SCOPE_IDENTITY()`) with a real `RowAudit` table, asserting the actual rows: Insert/Update (exact changed
   columns) / Delete, no-op update writes nothing, and failed changes (missing row, duplicate-PK insert) leave no
   audit row. Needs no SQL Server; the `Microsoft.Data.Sqlite` package is a test-only dependency.
+
+## ErrorHandling (錯誤處理) — cross-cutting exception handling
+
+One generic error response for any unhandled server failure, and one toast for it in the UI. Not a
+list/detail/form feature — middleware on the backend, interceptor policy on the frontend.
+
+- **`Middleware/ExceptionHandlingMiddleware.cs`** — registered **first** in `Program.cs`
+  (`app.UseMiddleware<ExceptionHandlingMiddleware>()`), so it wraps the whole pipeline. Catches anything a
+  controller or repository lets escape, logs it via `ILogger` at Error with the message + stack trace + a
+  trace id, and replies `500` with `Models/ErrorResponse.cs` — `{ "message", "traceId" }`, camelCase.
+  `message` is always the constant `ErrorResponse.GenericMessage`; **stack traces, SQL, and connection
+  strings never cross the wire.** `traceId` is `Activity.Current?.Id` (the W3C traceparent), so a user's
+  report maps to the logged exception.
+- **Being registered first also puts it *inside* the Developer Exception Page** that minimal hosting adds
+  automatically in Development — an exception unwinds to the innermost handler, so this middleware answers
+  the client in every environment. Tests rely on that (`CmsApiFactory` forces `Development`).
+- **It only sees exceptions.** 401 challenges, 403 forbids, and `[ApiController]` ModelState 400s are
+  produced without throwing, so they pass through untouched — 401/403 keep their empty bodies +
+  `WWW-Authenticate`, validation keeps its `ValidationProblemDetails` (`application/problem+json`), and
+  controllers' own `{ message }` 400/404/409 bodies are unchanged. Anything already meaningful stays as-is.
+- `Response.Clear()` drops a partially-staged response before writing; CORS headers survive it because the
+  CORS middleware applies them from an `OnStarting` callback. A client disconnect
+  (`OperationCanceledException` + `RequestAborted`) unwinds quietly rather than logging an error, and a
+  response whose headers already started is rethrown rather than corrupted.
+- **Frontend — `core/interceptors/auth.interceptor.ts` owns 5xx reporting.** On a 5xx from the API it raises
+  one `MessageService` toast (severity `error`, summary `錯誤 Error`) carrying the server's safe `message`,
+  falling back to `FALLBACK_ERROR_MESSAGE` when the body has none. Only a **string `message` on an object
+  body** is displayed — a proxy's HTML error page arrives as a raw string and is never rendered. 401 still
+  clears the session + redirects (and does not toast); 400/409 are untouched and still surface on the form.
+  The error is always re-thrown, so components still react.
+- **Root toast host**: `MessageService` is provided in `app.config.ts` and `<p-toast />` sits in `app.html`
+  **outside** the `@if (auth.isAuthenticated())`, so a 5xx surfaces on the login screen too. `App` must not
+  declare `providers: [MessageService]` or it would shadow the root instance the interceptor injects.
+  Feature components keep their own scoped `MessageService` + `<p-toast />` for their own messages.
+- **Components must not report 5xx themselves.** `core/utils/http-error.util.ts` exports `isServerError(err)`
+  (the same predicate the interceptor uses). Every component `error:` handler runs its state cleanup first,
+  then `if (isServerError(err)) return;` before its `messages.add(...)` — otherwise one failure toasts twice.
+  Applied across all 18 feature components (39 handlers). **Follow this in any new feature.** Exception:
+  `features/auth/login/login.ts` reports inline via an `error` signal, not a toast, and is left as-is.
+- Tests — backend: `ExceptionHandlingTests.cs` (10: generic 500 body + shape, no SQL/stack/connection leak,
+  every verb, full exception logged with the client's trace id, and 401/403/validation-400/`{ message }`-400/
+  200 all unchanged). `CmsApiFactory.CustomizeServices` swaps in `Fakes/ThrowingPublishStatusRepository.cs`
+  (whose message deliberately contains SQL + a password) and `Fakes/RecordingLoggerProvider.cs` captures logs.
+  Frontend: `auth.interceptor.spec.ts` (500 toasts the safe message + no redirect, 503 too, fallback when the
+  body has no message, HTML body never rendered, 401 redirects + does not toast, 400/409 do not toast) and
+  `app.spec.ts` (toast host renders when signed out).
