@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
@@ -10,6 +11,7 @@ import { MessageService } from 'primeng/api';
 import { CourseGroupRequest } from '@core/models/course-group.model';
 import { CourseGroupService } from '@core/services/course-group.service';
 import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
+import { isServerError } from '@core/utils/http-error.util';
 
 @Component({
   selector: 'course-group-form',
@@ -59,9 +61,10 @@ export class CourseGroupForm implements OnInit {
           });
           this.loading.set(false);
         },
-        error: () => {
-          this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
+        error: (err: HttpErrorResponse) => {
           this.loading.set(false);
+          if (isServerError(err)) return; // the interceptor already reported this
+          this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
         },
       });
     } else {
@@ -82,8 +85,9 @@ export class CourseGroupForm implements OnInit {
     };
 
     this.saving.set(true);
-    const onError = () => {
+    const onError = (err: HttpErrorResponse) => {
       this.saving.set(false);
+      if (isServerError(err)) return; // the interceptor already reported this
       this.messages.add({ severity: 'error', summary: '儲存失敗', detail: '儲存課程群組時發生錯誤。' });
     };
     const onSuccess = (pkid: number) => {

@@ -18,6 +18,7 @@ import { AppUserService } from '@core/services/app-user.service';
 import { LookupService } from '@core/services/lookup.service';
 import { AuthService } from '@core/services/auth.service';
 import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
+import { isServerError } from '@core/utils/http-error.util';
 
 @Component({
   selector: 'app-user-form',
@@ -88,9 +89,10 @@ export class AppUserForm implements OnInit {
         }
         this.loading.set(false);
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
       },
     });
   }
@@ -122,6 +124,7 @@ export class AppUserForm implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.saving.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
         const detail =
           err.status === 409 ? (err.error?.message ?? '使用者代碼已存在。') : '儲存使用者時發生錯誤。';
         this.messages.add({ severity: 'error', summary: '儲存失敗', detail });
@@ -153,7 +156,8 @@ export class AppUserForm implements OnInit {
       next: () => {
         this.messages.add({ severity: 'success', summary: '已重設', detail: '密碼已重設為系統預設密碼。' });
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        if (isServerError(err)) return; // the interceptor already reported this
         this.messages.add({ severity: 'error', summary: '重設失敗', detail: '重設密碼時發生錯誤。' });
       },
     });

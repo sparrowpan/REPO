@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
@@ -14,6 +15,7 @@ import { PromotionLookup } from '@core/models/promotion-lookup.model';
 import { FeaturedPromoItemService } from '@core/services/featured-promo-item.service';
 import { LookupService } from '@core/services/lookup.service';
 import { toIso } from '@core/utils/date.util';
+import { isServerError } from '@core/utils/http-error.util';
 
 /** Editable fields of the inline cell form. */
 interface EditModel {
@@ -88,8 +90,9 @@ export class FeaturedPromoItemBoard implements OnInit {
         this.activeCenter.set(centers[0]?.pkid ?? null);
         this.loadItems();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
         this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入訓練中心／活動資料。' });
       },
     });
@@ -115,8 +118,9 @@ export class FeaturedPromoItemBoard implements OnInit {
           this.items.set(data);
           this.loading.set(false);
         },
-        error: () => {
+        error: (err: HttpErrorResponse) => {
           this.loading.set(false);
+          if (isServerError(err)) return; // the interceptor already reported this
           this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入上稿資料。' });
         },
       });
@@ -227,8 +231,10 @@ export class FeaturedPromoItemBoard implements OnInit {
       this.cancelEdit();
       this.loadItems();
     };
-    const fail = () =>
+    const fail = (err: HttpErrorResponse) => {
+      if (isServerError(err)) return; // the interceptor already reported this
       this.messages.add({ severity: 'error', summary: '儲存失敗', detail: '儲存上稿資料時發生錯誤。' });
+    };
 
     if (request.pkid > 0) {
       this.service.update(request).subscribe({ next: done, error: fail });
@@ -267,8 +273,10 @@ export class FeaturedPromoItemBoard implements OnInit {
         this.messages.add({ severity: 'success', summary: '已刪除', detail: '上稿資料已刪除。' });
         this.loadItems();
       },
-      error: () =>
-        this.messages.add({ severity: 'error', summary: '刪除失敗', detail: '刪除上稿資料時發生錯誤。' }),
+      error: (err: HttpErrorResponse) => {
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '刪除失敗', detail: '刪除上稿資料時發生錯誤。' });
+      },
     });
   }
 
@@ -288,8 +296,10 @@ export class FeaturedPromoItemBoard implements OnInit {
     this.cancelEdit();
     this.service.move({ pkid: item.pkid, targetSlot }).subscribe({
       next: () => this.loadItems(),
-      error: () =>
-        this.messages.add({ severity: 'error', summary: '搬移失敗', detail: '搬移版位時發生錯誤。' }),
+      error: (err: HttpErrorResponse) => {
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '搬移失敗', detail: '搬移版位時發生錯誤。' });
+      },
     });
   }
 }

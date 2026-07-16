@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
 import { TableModule, TablePageEvent } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -24,6 +25,7 @@ import { PartnerLookup } from '@core/models/partner-lookup.model';
 import { CourseGroupLookup } from '@core/models/course-group-lookup.model';
 import { PublishStatusLookup } from '@core/models/publish-status-lookup.model';
 import { toIso, fromIso } from '@core/utils/date.util';
+import { isServerError } from '@core/utils/http-error.util';
 
 const FILTERS_KEY = 'course-list-filters';
 const SORT_KEY = 'course-list-sort';
@@ -140,10 +142,11 @@ export class CourseList implements OnInit {
         this.restoreState();
         this.load();
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入選單資料。' });
+      error: (err: HttpErrorResponse) => {
         this.restoreState();
         this.load();
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入選單資料。' });
       },
     });
   }
@@ -193,9 +196,10 @@ export class CourseList implements OnInit {
         this.courses.set(data);
         this.loading.set(false);
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入課程資料。' });
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入課程資料。' });
       },
     });
   }
@@ -287,10 +291,11 @@ export class CourseList implements OnInit {
         this.cancelEdit();
         this.messages.add({ severity: 'success', summary: '已更新', detail: '課程資料已更新。' });
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.savingCell = false;
         // Revert: the row in the signal was never mutated, so closing the editor restores it.
         this.cancelEdit();
+        if (isServerError(err)) return; // the interceptor already reported this
         this.messages.add({ severity: 'error', summary: '更新失敗', detail: '儲存變更時發生錯誤，已還原。' });
       },
     });
@@ -479,7 +484,8 @@ export class CourseList implements OnInit {
         this.messages.add({ severity: 'success', summary: '已刪除', detail: `課程「${course.title}」已刪除。` });
         this.load();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        if (isServerError(err)) return; // the interceptor already reported this
         this.messages.add({ severity: 'error', summary: '刪除失敗', detail: '刪除課程時發生錯誤。' });
       },
     });

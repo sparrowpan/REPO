@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
@@ -14,6 +15,7 @@ import { AppUserService } from '@core/services/app-user.service';
 import { LookupService } from '@core/services/lookup.service';
 import { AuthService } from '@core/services/auth.service';
 import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
+import { isServerError } from '@core/utils/http-error.util';
 
 @Component({
   selector: 'app-user-detail',
@@ -49,9 +51,10 @@ export class AppUserDetail implements OnInit {
         this.roleLabels.set(this.mapRoleLabels(user.roleIds, roles));
         this.loading.set(false);
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入使用者資料。' });
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入使用者資料。' });
       },
     });
   }
@@ -80,7 +83,8 @@ export class AppUserDetail implements OnInit {
         this.messages.add({ severity: 'success', summary: '已重設', detail: '密碼已重設為預設密碼。' });
         this.service.getById(user.userId).subscribe((u) => this.user.set(u));
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        if (isServerError(err)) return; // the interceptor already reported this
         this.messages.add({ severity: 'error', summary: '重設失敗', detail: '重設密碼時發生錯誤。' });
       },
     });

@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { forkJoin, of, Observable } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -23,6 +24,7 @@ import { PublishStatusLookup } from '@core/models/publish-status-lookup.model';
 import { JobCategoryLookup } from '@core/models/job-category-lookup.model';
 import { CertificationLookup } from '@core/models/certification-lookup.model';
 import { toIso, fromIso } from '@core/utils/date.util';
+import { isServerError } from '@core/utils/http-error.util';
 import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
 
 @Component({
@@ -147,9 +149,10 @@ export class CourseForm implements OnInit {
         }
         this.loading.set(false);
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
       },
     });
   }
@@ -191,8 +194,9 @@ export class CourseForm implements OnInit {
     };
 
     this.saving.set(true);
-    const onError = () => {
+    const onError = (err: HttpErrorResponse) => {
       this.saving.set(false);
+      if (isServerError(err)) return; // the interceptor already reported this
       this.messages.add({ severity: 'error', summary: '儲存失敗', detail: '儲存課程時發生錯誤。' });
     };
     const onSuccess = (pkid: number) => {

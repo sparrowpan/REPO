@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -11,6 +12,7 @@ import { MessageService } from 'primeng/api';
 import { PartnerRequest } from '@core/models/partner.model';
 import { PartnerService } from '@core/services/partner.service';
 import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
+import { isServerError } from '@core/utils/http-error.util';
 
 @Component({
   selector: 'partner-form',
@@ -71,9 +73,10 @@ export class PartnerForm implements OnInit {
           });
           this.loading.set(false);
         },
-        error: () => {
-          this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
+        error: (err: HttpErrorResponse) => {
           this.loading.set(false);
+          if (isServerError(err)) return; // the interceptor already reported this
+          this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
         },
       });
     } else {
@@ -99,8 +102,9 @@ export class PartnerForm implements OnInit {
     };
 
     this.saving.set(true);
-    const onError = () => {
+    const onError = (err: HttpErrorResponse) => {
       this.saving.set(false);
+      if (isServerError(err)) return; // the interceptor already reported this
       this.messages.add({ severity: 'error', summary: '儲存失敗', detail: '儲存廠商時發生錯誤。' });
     };
     const onSuccess = (pkid: number) => {

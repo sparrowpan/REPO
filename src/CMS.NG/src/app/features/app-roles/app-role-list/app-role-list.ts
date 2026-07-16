@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TableModule, TablePageEvent } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { DrawerModule } from 'primeng/drawer';
@@ -14,6 +15,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { AppRole, AppRoleQuery } from '@core/models/app-role.model';
 import { AppRoleService } from '@core/services/app-role.service';
+import { isServerError } from '@core/utils/http-error.util';
 
 const FILTERS_KEY = 'app-role-list-filters';
 const SORT_KEY = 'app-role-list-sort';
@@ -86,9 +88,10 @@ export class AppRoleList implements OnInit {
         this.roles.set(data);
         this.loading.set(false);
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入角色資料。' });
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入角色資料。' });
       },
     });
   }
@@ -155,7 +158,8 @@ export class AppRoleList implements OnInit {
         this.messages.add({ severity: 'success', summary: '已刪除', detail: `角色「${role.roleId}」已刪除。` });
         this.load();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        if (isServerError(err)) return; // the interceptor already reported this
         this.messages.add({ severity: 'error', summary: '刪除失敗', detail: '刪除角色時發生錯誤。' });
       },
     });

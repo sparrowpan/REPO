@@ -1,4 +1,5 @@
 using CMS.API.Infrastructure;
+using CMS.API.Middleware;
 using CMS.API.Repositories;
 using CMS.API.Services;
 using Dapper;
@@ -83,6 +84,12 @@ SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
 SqlMapper.AddTypeHandler(new TimeOnlyTypeHandler());
 
 // --- Pipeline ---------------------------------------------------------------
+// First in the pipeline so it wraps everything below it: any exception a controller or repository
+// lets escape becomes one generic 500 JSON body, with the full detail going to the log instead.
+// Being registered here also puts it *inside* the Developer Exception Page that minimal hosting
+// adds automatically in Development, so it — not the dev page — answers the client either way.
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {

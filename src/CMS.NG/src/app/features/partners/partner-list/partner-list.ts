@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TableModule, TablePageEvent } from 'primeng/table';
@@ -13,6 +14,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { Partner, PartnerQuery } from '@core/models/partner.model';
 import { PartnerService } from '@core/services/partner.service';
+import { isServerError } from '@core/utils/http-error.util';
 
 const FILTERS_KEY = 'partner-list-filters';
 const SORT_KEY = 'partner-list-sort';
@@ -84,9 +86,10 @@ export class PartnerList implements OnInit {
         this.partners.set(data);
         this.loading.set(false);
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入廠商資料。' });
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入廠商資料。' });
       },
     });
   }
@@ -153,7 +156,8 @@ export class PartnerList implements OnInit {
         this.messages.add({ severity: 'success', summary: '已刪除', detail: `廠商「${partner.name}」已刪除。` });
         this.load();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        if (isServerError(err)) return; // the interceptor already reported this
         this.messages.add({ severity: 'error', summary: '刪除失敗', detail: '刪除廠商時發生錯誤。' });
       },
     });

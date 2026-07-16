@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { MenuModule } from 'primeng/menu';
+import { ToastModule } from 'primeng/toast';
 import { MenuItem } from 'primeng/api';
 import { AuthService } from '@core/services/auth.service';
 
@@ -25,7 +26,7 @@ interface NavSection {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MenuModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MenuModule, ToastModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

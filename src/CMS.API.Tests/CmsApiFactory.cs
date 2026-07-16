@@ -16,6 +16,13 @@ namespace CMS.API.Tests;
 /// </summary>
 public sealed class CmsApiFactory : WebApplicationFactory<Program>
 {
+    /// <summary>
+    /// Runs after the fakes above are registered, so a test can replace one of them (or add a
+    /// service of its own) for a single case — e.g. swapping in a repository that throws to
+    /// exercise the global exception middleware. Left null by the CRUD suites.
+    /// </summary>
+    public Action<IServiceCollection>? CustomizeServices { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
@@ -50,6 +57,8 @@ public sealed class CmsApiFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IAuthRepository>();
             services.AddSingleton<IAuthRepository, FakeAuthRepository>();
+
+            CustomizeServices?.Invoke(services);
         });
     }
 

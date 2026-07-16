@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { MessageService } from 'primeng/api';
 import { App } from './app';
 import { routes } from './app.routes';
 
@@ -27,7 +28,14 @@ describe('App', () => {
     sessionStorage.clear();
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter(routes),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        // The shell hosts the <p-toast /> that authInterceptor writes 5xx errors to; appConfig
+        // provides this at root in the real app.
+        MessageService,
+      ],
     }).compileComponents();
   });
 
@@ -78,6 +86,14 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.topbar')).toBeNull();
+  });
+
+  it('hosts the toast outlet even when signed out, so 5xx errors surface on the login screen', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.topbar')).toBeNull();
+    expect(compiled.querySelector('p-toast')).toBeTruthy();
   });
 
   it('should toggle sidebar collapse', () => {

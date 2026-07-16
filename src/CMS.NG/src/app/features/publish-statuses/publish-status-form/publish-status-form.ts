@@ -14,6 +14,7 @@ import { MessageService } from 'primeng/api';
 import { PublishStatusRequest } from '@core/models/publish-status.model';
 import { PublishStatusService } from '@core/services/publish-status.service';
 import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
+import { isServerError } from '@core/utils/http-error.util';
 
 @Component({
   selector: 'publish-status-form',
@@ -71,9 +72,10 @@ export class PublishStatusForm implements OnInit {
           this.form.controls.pkid.disable(); // pkid is immutable in edit mode.
           this.loading.set(false);
         },
-        error: () => {
-          this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
+        error: (err: HttpErrorResponse) => {
           this.loading.set(false);
+          if (isServerError(err)) return; // the interceptor already reported this
+          this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
         },
       });
     } else {
@@ -108,6 +110,7 @@ export class PublishStatusForm implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.saving.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
         const detail =
           err.status === 409 ? (err.error?.message ?? '主代碼已存在。') : '儲存發布狀態時發生錯誤。';
         this.messages.add({ severity: 'error', summary: '儲存失敗', detail });

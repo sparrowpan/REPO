@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TableModule, TablePageEvent } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { DrawerModule } from 'primeng/drawer';
@@ -13,6 +14,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { CourseGroup, CourseGroupQuery } from '@core/models/course-group.model';
 import { CourseGroupService } from '@core/services/course-group.service';
+import { isServerError } from '@core/utils/http-error.util';
 
 const FILTERS_KEY = 'course-group-list-filters';
 const SORT_KEY = 'course-group-list-sort';
@@ -84,9 +86,10 @@ export class CourseGroupList implements OnInit {
         this.courseGroups.set(data);
         this.loading.set(false);
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入課程群組資料。' });
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入課程群組資料。' });
       },
     });
   }
@@ -153,7 +156,8 @@ export class CourseGroupList implements OnInit {
         this.messages.add({ severity: 'success', summary: '已刪除', detail: `課程群組「${courseGroup.description}」已刪除。` });
         this.load();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        if (isServerError(err)) return; // the interceptor already reported this
         this.messages.add({ severity: 'error', summary: '刪除失敗', detail: '刪除課程群組時發生錯誤。' });
       },
     });

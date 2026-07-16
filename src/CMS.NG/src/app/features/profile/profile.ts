@@ -15,6 +15,7 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 
 import { AuthService } from '@core/services/auth.service';
+import { isServerError } from '@core/utils/http-error.util';
 
 /**
  * New-password complexity message, kept identical to the server's `PasswordPolicy.ComplexityMessage`
@@ -112,6 +113,7 @@ export class Profile {
       },
       error: (err: HttpErrorResponse) => {
         this.saving.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
         const detail =
           err.status === 400 ? '使用者名稱為必填。' : '儲存時發生錯誤，請稍後再試。';
         this.messages.add({ severity: 'error', summary: '儲存失敗', detail });
@@ -134,6 +136,7 @@ export class Profile {
       },
       error: (err: HttpErrorResponse) => {
         this.changingPassword.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
         // Prefer the server's message (e.g. wrong current password / complexity) when present.
         const detail =
           (typeof err.error === 'object' && err.error?.message) ||

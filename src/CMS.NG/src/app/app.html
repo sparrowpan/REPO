@@ -1,3 +1,8 @@
+<!-- Outside the auth check on purpose: a 5xx raised by authInterceptor must surface on the login
+     screen too. App deliberately does not provide MessageService, so this host binds to the root
+     instance the interceptor injects. -->
+<p-toast />
+
 @if (auth.isAuthenticated()) {
   <div class="layout" [class.layout--collapsed]="collapsed()">
     <!-- Topbar -->
