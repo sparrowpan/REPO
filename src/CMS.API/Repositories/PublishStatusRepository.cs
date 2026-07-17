@@ -126,8 +126,17 @@ public sealed class PublishStatusRepository(IDbConnectionFactory connectionFacto
             return false;
         }
 
-        await conn.ExecuteAsync(new CommandDefinition(
-            "DELETE FROM PublishStatus WHERE pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
+        try
+        {
+            await conn.ExecuteAsync(new CommandDefinition(
+                "DELETE FROM PublishStatus WHERE pkid = @Pkid", new { Pkid = pkid }, tx, cancellationToken: ct));
+        }
+        catch (Exception ex) when (ReferencedRecordException.IsForeignKeyViolation(ex))
+        {
+            // Course rows still point at this status. Surface it as a domain failure the controller
+            // can turn into a 409 — unhandled, it would reach the middleware as a generic 500.
+            throw new ReferencedRecordException(TableName, ex);
+        }
 
         await audit.LogDelete(TableName, existing, conn, tx, ct);
         tx.Commit();

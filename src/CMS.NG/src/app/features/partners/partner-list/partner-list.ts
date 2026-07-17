@@ -158,7 +158,12 @@ export class PartnerList implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         if (isServerError(err)) return; // the interceptor already reported this
-        this.messages.add({ severity: 'error', summary: '刪除失敗', detail: '刪除廠商時發生錯誤。' });
+        // 409 = still assigned to courses; the server names the reason, so prefer its message.
+        const detail =
+          err.status === 409
+            ? (err.error?.message ?? '此合作廠商已被課程使用，無法刪除。')
+            : '刪除廠商時發生錯誤。';
+        this.messages.add({ severity: 'error', summary: '刪除失敗', detail });
       },
     });
   }

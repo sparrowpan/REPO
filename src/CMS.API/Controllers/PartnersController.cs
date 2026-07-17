@@ -1,3 +1,4 @@
+using CMS.API.Infrastructure;
 using CMS.API.Models;
 using CMS.API.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -42,11 +43,21 @@ public class PartnersController(IPartnerRepository repository) : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
-    /// <summary>Delete a partner by pkid.</summary>
+    /// <summary>
+    /// Delete a partner by pkid. A partner still assigned to courses cannot be deleted — the FK
+    /// refusal comes back as <c>409</c>, not the middleware's generic 500.
+    /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(short id, CancellationToken ct)
     {
-        var deleted = await repository.DeleteAsync(id, ct);
-        return deleted ? NoContent() : NotFound();
+        try
+        {
+            var deleted = await repository.DeleteAsync(id, ct);
+            return deleted ? NoContent() : NotFound();
+        }
+        catch (ReferencedRecordException)
+        {
+            return Conflict(new { message = "此合作廠商已被課程使用，無法刪除。" });
+        }
     }
 }

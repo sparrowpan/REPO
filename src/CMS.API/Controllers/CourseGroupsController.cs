@@ -1,3 +1,4 @@
+using CMS.API.Infrastructure;
 using CMS.API.Models;
 using CMS.API.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -42,11 +43,21 @@ public class CourseGroupsController(ICourseGroupRepository repository) : Control
         return updated ? NoContent() : NotFound();
     }
 
-    /// <summary>Delete a course group by pkid.</summary>
+    /// <summary>
+    /// Delete a course group by pkid. A group still assigned to courses cannot be deleted — the FK
+    /// refusal comes back as <c>409</c>, not the middleware's generic 500.
+    /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(short id, CancellationToken ct)
     {
-        var deleted = await repository.DeleteAsync(id, ct);
-        return deleted ? NoContent() : NotFound();
+        try
+        {
+            var deleted = await repository.DeleteAsync(id, ct);
+            return deleted ? NoContent() : NotFound();
+        }
+        catch (ReferencedRecordException)
+        {
+            return Conflict(new { message = "此課程群組已被課程使用，無法刪除。" });
+        }
     }
 }
