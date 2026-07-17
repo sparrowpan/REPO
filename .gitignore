@@ -30,3 +30,9 @@ Thumbs.db
 .gstack/
 
 .claude/worktrees/
+
+# Claude Code session transcripts dumped at the repo root
+/20??-??-??-??????-*.txt
+
+# Local review artifacts, kept out of the repo
+cso/
