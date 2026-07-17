@@ -119,8 +119,10 @@
           @if (isEditing(course, 'scheduleOn')) {
             <p-datepicker [ngModel]="$any(editValue)" (ngModelChange)="editValue = $event"
                           dateFormat="yy-mm-dd" appendTo="body" styleClass="cell-editor"
+                          (onShow)="onDatePanelShow()"
                           (onSelect)="onEditBlur(course, 'scheduleOn')"
-                          (onBlur)="onEditBlur(course, 'scheduleOn')" />
+                          (onClose)="onDatePanelClose(course, 'scheduleOn')"
+                          (onBlur)="onDateEditBlur(course, 'scheduleOn')" />
             @if (editError()) { <small class="cell-error">{{ editError() }}</small> }
           } @else { {{ course.scheduleOn }} }
         </td>
@@ -130,8 +132,10 @@
           @if (isEditing(course, 'scheduleOff')) {
             <p-datepicker [ngModel]="$any(editValue)" (ngModelChange)="editValue = $event"
                           dateFormat="yy-mm-dd" appendTo="body" styleClass="cell-editor"
+                          (onShow)="onDatePanelShow()"
                           (onSelect)="onEditBlur(course, 'scheduleOff')"
-                          (onBlur)="onEditBlur(course, 'scheduleOff')" />
+                          (onClose)="onDatePanelClose(course, 'scheduleOff')"
+                          (onBlur)="onDateEditBlur(course, 'scheduleOff')" />
             @if (editError()) { <small class="cell-error">{{ editError() }}</small> }
           } @else { {{ course.scheduleOff }} }
         </td>

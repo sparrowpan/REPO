@@ -15,10 +15,11 @@ namespace CMS.API.Tests;
 /// </summary>
 public class AppUsersControllerTests
 {
+    /// <summary>The AppUser endpoints are Admin-only, so the default client here carries that role.</summary>
     private static (CmsApiFactory factory, HttpClient client) CreateClient()
     {
         var factory = new CmsApiFactory();
-        return (factory, factory.CreateAuthenticatedClient());
+        return (factory, factory.CreateAuthenticatedClient("Admin"));
     }
 
     // --- List / filter ------------------------------------------------------
@@ -224,6 +225,69 @@ public class AppUsersControllerTests
 
         var check = await client.GetAsync("/api/appusers/miles");
         Assert.Equal(HttpStatusCode.NotFound, check.StatusCode);
+    }
+
+    // --- Admin-only enforcement ---------------------------------------------
+
+    /// <summary>
+    /// The whole controller is Admin-only. Update writes RoleIds straight to the AppUserRole
+    /// junction, so a merely-authenticated caller reaching it could grant themselves any role —
+    /// these pin the gate shut. Theory rather than one test per verb so a newly added action that
+    /// forgets the gate shows up as a named failure.
+    /// </summary>
+    [Theory]
+    [InlineData("GET", "/api/appusers")]
+    [InlineData("POST", "/api/appusers/query")]
+    [InlineData("GET", "/api/appusers/helen")]
+    [InlineData("POST", "/api/appusers")]
+    [InlineData("PUT", "/api/appusers")]
+    [InlineData("DELETE", "/api/appusers/helen")]
+    [InlineData("POST", "/api/appusers/helen/reset-password")]
+    public async Task EveryAction_AsNonAdmin_Returns403(string method, string url)
+    {
+        var factory = new CmsApiFactory();
+        using var _ = factory;
+        // Authenticated, but without the Admin role — must be forbidden, not merely unauthorized.
+        var client = factory.CreateAuthenticatedClient("User");
+
+        var request = new HttpRequestMessage(new HttpMethod(method), url);
+        if (method is "POST" or "PUT")
+        {
+            request.Content = JsonContent.Create(new { });
+        }
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    /// <summary>
+    /// The escalation this gate exists to stop: a non-Admin PUTs their own record with
+    /// RoleIds ["Admin"]. It must be refused at the door, and the role set must be untouched.
+    /// Uses "miles" — seeded with ["User"] only, so the post-condition is not vacuous the way
+    /// it would be for "helen", who is seeded as an Admin already.
+    /// </summary>
+    [Fact]
+    public async Task Update_AsNonAdmin_CannotGrantSelfAdminRole()
+    {
+        var factory = new CmsApiFactory();
+        using var _ = factory;
+        var client = factory.CreateAuthenticatedClientAs("miles", "Miles Sun", "User");
+
+        var response = await client.PutAsJsonAsync("/api/appusers", new AppUserRequest
+        {
+            UserId = "miles",
+            UserName = "Miles Sun",
+            IsActive = true,
+            RoleIds = ["Admin"],
+        });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        // The junction must be untouched — the request never reached the repository.
+        var fake = (FakeAppUserRepository)factory.Services.GetRequiredService<IAppUserRepository>();
+        var miles = await fake.GetByUserIdAsync("miles");
+        Assert.DoesNotContain("Admin", miles!.RoleIds);
     }
 
     // --- Reset password (Admin-only) ----------------------------------------

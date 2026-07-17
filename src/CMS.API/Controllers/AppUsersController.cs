@@ -5,6 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CMS.API.Controllers;
 
+/// <summary>
+/// User administration. Admin-only as a whole: <c>Update</c> writes <c>RoleIds</c> straight through to
+/// the AppUserRole junction, so leaving any action on the global authenticated-user policy would let
+/// any signed-in caller grant themselves a role. The sidebar hides this area from non-Admins
+/// (<c>requiresAdmin</c>), but that is presentation — this attribute is the enforcement.
+/// </summary>
+[Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/appusers")]
 public class AppUsersController(IAppUserRepository repository) : ControllerBase

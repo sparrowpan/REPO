@@ -1,9 +1,17 @@
 using CMS.API.Models;
 using CMS.API.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CMS.API.Controllers;
 
+/// <summary>
+/// Role administration. Admin-only as a whole: these actions define the role set the authorization
+/// system itself depends on, so a non-Admin caller could otherwise delete or rename the Admin role and
+/// strip every administrator. The sidebar hides this area from non-Admins (<c>requiresAdmin</c>), but
+/// that is presentation — this attribute is the enforcement.
+/// </summary>
+[Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/approles")]
 public class AppRolesController(IAppRoleRepository repository) : ControllerBase

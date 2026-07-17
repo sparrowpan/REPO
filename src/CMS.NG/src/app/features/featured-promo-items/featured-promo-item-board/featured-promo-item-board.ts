@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -40,7 +39,7 @@ const WEEKDAY_CN = ['日', '一', '二', '三', '四', '五', '六'] as const;
 
 @Component({
   selector: 'featured-promo-item-board',
-  imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, ToastModule, ConfirmDialogModule],
+  imports: [CommonModule, FormsModule, InputTextModule, ToastModule, ConfirmDialogModule],
   providers: [ConfirmationService, MessageService],
   templateUrl: './featured-promo-item-board.html',
   styleUrl: './featured-promo-item-board.scss',

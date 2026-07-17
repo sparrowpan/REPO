@@ -1,6 +1,4 @@
 using System.Data;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using CMS.API.Infrastructure;
 using CMS.API.Models;
@@ -90,7 +88,7 @@ public sealed class AppUserRepository(IDbConnectionFactory connectionFactory, Ro
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
         using var tx = conn.BeginTransaction();
 
-        var passwordHash = HashPassword(await GetDefaultPasswordAsync(conn, tx, ct));
+        var passwordHash = PasswordHasher.Hash(await GetDefaultPasswordAsync(conn, tx, ct));
 
         var pkid = await conn.ExecuteScalarAsync<int>(new CommandDefinition("""
             INSERT INTO AppUser (UserId, UserName, IsActive, PasswordHash, PasswordUpdatedTime)
@@ -183,7 +181,7 @@ public sealed class AppUserRepository(IDbConnectionFactory connectionFactory, Ro
     public async Task<bool> ResetPasswordAsync(string userId, CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
-        var passwordHash = HashPassword(await GetDefaultPasswordAsync(conn, null, ct));
+        var passwordHash = PasswordHasher.Hash(await GetDefaultPasswordAsync(conn, null, ct));
 
         var affected = await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE AppUser
@@ -238,10 +236,4 @@ public sealed class AppUserRepository(IDbConnectionFactory connectionFactory, Ro
         return FallbackDefaultPassword;
     }
 
-    /// <summary>SHA-256 of the UTF-8 password bytes, as a lowercase hex string (fits nvarchar(800)).</summary>
-    private static string HashPassword(string password)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password));
-        return Convert.ToHexStringLower(bytes);
-    }
 }

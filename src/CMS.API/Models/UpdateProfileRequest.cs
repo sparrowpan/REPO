@@ -11,5 +11,6 @@ public sealed class UpdateProfileRequest
 {
     /// <summary>使用者名稱 — required; trimmed server-side before saving.</summary>
     [Required]
+    [MaxLength(200)]
     public string UserName { get; set; } = string.Empty;
 }

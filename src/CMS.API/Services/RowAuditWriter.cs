@@ -21,6 +21,13 @@ public sealed class RowAuditWriter(IHttpContextAccessor httpContextAccessor)
     /// <summary>Maximum length of <see cref="RowAudit.ActionDesc"/> (the SQL column is varchar(1000)).</summary>
     public const int ActionDescMaxLength = 1000;
 
+    /// <summary>
+    /// Maximum length of <see cref="RowAudit.UserName"/> (the SQL column is nvarchar(100)). Narrower
+    /// than AppUser.UserName (nvarchar(200)), so the name must be clipped here or the audit INSERT
+    /// throws inside the caller's transaction and rolls back the business change with it.
+    /// </summary>
+    public const int UserNameMaxLength = 100;
+
     private const string FallbackUserName = "system";
 
     private const string InsertSql = """
@@ -105,7 +112,7 @@ public sealed class RowAuditWriter(IHttpContextAccessor httpContextAccessor)
                    ?? user?.FindFirst(ClaimTypes.Name)?.Value
                    ?? user?.Identity?.Name;
 
-        return string.IsNullOrWhiteSpace(name) ? FallbackUserName : name;
+        return string.IsNullOrWhiteSpace(name) ? FallbackUserName : TruncateUserName(name);
     }
 
     /// <summary>The entity's pkid property (found case-insensitively) as a string, or "" if absent/null.</summary>
@@ -146,6 +153,9 @@ public sealed class RowAuditWriter(IHttpContextAccessor httpContextAccessor)
         => value is not null && value.Length > ActionDescMaxLength
             ? value[..ActionDescMaxLength]
             : value;
+
+    private static string TruncateUserName(string value)
+        => value.Length > UserNameMaxLength ? value[..UserNameMaxLength] : value;
 
     /// <summary>Public instance, non-indexer properties in declaration (metadata) order.</summary>
     private static IEnumerable<PropertyInfo> ReadableProperties(Type type)

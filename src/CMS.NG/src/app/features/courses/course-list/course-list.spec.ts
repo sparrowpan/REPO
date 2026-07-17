@@ -342,6 +342,58 @@ describe('CourseList — inline editing', () => {
     });
   });
 
+  // The datepicker overlay is appended to body, so the real browser order when picking a date is
+  // blur (mousedown) -> ngModelChange -> onSelect (click) -> onClose. These drive that order rather
+  // than calling onEditBlur directly, which is what let the blur-closes-the-panel bug through.
+  describe('date cells (overlay panel event ordering)', () => {
+    it('a blur while the panel is open leaves the editor open', () => {
+      const course = seed();
+      component.startEdit(course, 'scheduleOn');
+      component.onDatePanelShow(); // user clicked the input; the overlay opened
+      component.onDateEditBlur(course, 'scheduleOn'); // mousedown on a date blurs the input
+
+      // Closing here would destroy the panel before the click could select the date.
+      expect(component.isEditing(course, 'scheduleOn')).toBe(true);
+      expect(serviceSpy.update).not.toHaveBeenCalled();
+    });
+
+    it('picking a date persists it exactly once', () => {
+      const course = seed();
+      component.startEdit(course, 'scheduleOn');
+      component.onDatePanelShow();
+      component.onDateEditBlur(course, 'scheduleOn'); // blur lands before the click
+      component['editValue'] = new Date(2025, 0, 15); // ngModelChange from the selection
+      component.onEditBlur(course, 'scheduleOn'); // (onSelect)
+      component.onDatePanelClose(course, 'scheduleOn'); // overlay auto-hides afterwards
+
+      expect(serviceSpy.update).toHaveBeenCalledTimes(1);
+      expect(serviceSpy.update.calls.mostRecent().args[0].scheduleOn).toBe('2025-01-15');
+      expect(component['courses']()[0].scheduleOn).toBe('2025-01-15');
+      expect(component['editingCell']()).toBeNull();
+    });
+
+    it('closing the panel without picking a date closes the editor without saving', () => {
+      const course = seed();
+      component.startEdit(course, 'scheduleOn');
+      component.onDatePanelShow();
+      component.onDateEditBlur(course, 'scheduleOn');
+      component.onDatePanelClose(course, 'scheduleOn'); // clicked away
+
+      expect(serviceSpy.update).not.toHaveBeenCalled();
+      expect(component['editingCell']()).toBeNull();
+    });
+
+    it('a blur with no panel open still commits a typed date', () => {
+      const course = seed();
+      component.startEdit(course, 'scheduleOn');
+      component['editValue'] = new Date(2025, 0, 15);
+      component.onDateEditBlur(course, 'scheduleOn');
+
+      expect(serviceSpy.update.calls.mostRecent().args[0].scheduleOn).toBe('2025-01-15');
+      expect(component['editingCell']()).toBeNull();
+    });
+  });
+
   it('reverts the cell and surfaces an error when the save fails', () => {
     serviceSpy.update.and.returnValue(throwError(() => new Error('boom')));
     const course = seed();

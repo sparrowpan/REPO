@@ -113,6 +113,18 @@ and protects every endpoint/route. Schema: `database/auth.sql` (`AppUser`, `AppU
   `Services/SigningKeyProvider` (`IssuerSigningKeyResolver`, cached; keeps issuing ⇄ validating in sync).
   Tokens carry no issuer/audience, so only signature + lifetime are validated. `app.UseAuthentication()`
   precedes `app.UseAuthorization()`; Swagger middleware runs before auth so it stays reachable in dev.
+- **Role gating (backend)**: the fallback policy only proves *who* you are, not *what* you may do, so the
+  two administrative controllers carry class-level **`[Authorize(Roles = "Admin")]`**:
+  **`AppUsersController`** and **`AppRolesController`**. This is enforcement, not decoration — the sidebar's
+  `requiresAdmin` only hides the 系統管理 group in the UI, and the API is reachable directly. Without the
+  attribute `PUT /api/appusers` passes client-supplied `RoleIds` straight to `SyncRolesAsync`, so any
+  authenticated caller could grant themselves `Admin`; and `DELETE /api/approles/Admin` would let them strip
+  every administrator instead. **Any new controller administering users, roles, or permissions needs the same
+  attribute** — the global fallback will not do it for you. Pinned by
+  `AppUsersControllerTests.EveryAction_AsNonAdmin_Returns403` /`Update_AsNonAdmin_CannotGrantSelfAdminRole`
+  and `AppRolesControllerTests.EveryAction_AsNonAdmin_Returns403` /
+  `Delete_AdminRole_AsNonAdmin_IsForbiddenAndRoleSurvives` (both `[Theory]`-per-verb, so an action added
+  without the gate fails by name). The tests' default clients authenticate as `Admin` accordingly.
 - **Frontend auth** (`CMS.NG`): `core/services/auth.service.ts` stores the profile in **session storage**
   (`cms-auth`) as a signal; `roles` are decoded from the JWT's `ClaimTypes.Role` claim (no extra API call).
   `core/interceptors/auth.interceptor.ts` attaches `Authorization: Bearer <token>` to API requests and, on

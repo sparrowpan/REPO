@@ -110,6 +110,9 @@ export class CourseList implements OnInit {
   protected editValue: EditValue = null;
   // Guards against a blur firing a second save while an update request is in flight.
   private savingCell = false;
+  // True while a date cell's overlay panel is open. The panel is appended to body, so pressing
+  // the mouse on a date blurs the input before the click lands — see `onDateEditBlur`.
+  private datePanelOpen = false;
 
   protected readonly canRepeatOptions: CanRepeatOption[] = [
     { label: '全部', value: null },
@@ -253,6 +256,7 @@ export class CourseList implements OnInit {
     if (this.savingCell) return;
     this.editValue = this.initialValue(course, field);
     this.editError.set(null);
+    this.datePanelOpen = false;
     this.editingCell.set({ pkid: course.pkid, field });
   }
 
@@ -260,6 +264,30 @@ export class CourseList implements OnInit {
     this.editingCell.set(null);
     this.editError.set(null);
     this.editValue = null;
+    this.datePanelOpen = false;
+  }
+
+  /** A date cell's overlay panel opened; from here until it closes, the panel owns the interaction. */
+  onDatePanelShow(): void {
+    this.datePanelOpen = true;
+  }
+
+  /**
+   * Blur handler for date cells. The overlay is appended to body, so pressing the mouse on a date
+   * blurs the input first, and the click that would select the date only lands afterwards. Treating
+   * that blur as "done editing" tears the editor — and its panel — down mid-click, so the selection
+   * never happens and the edit appears to be discarded. While the panel is open the blur means
+   * nothing; `onDatePanelClose` commits once the panel is actually gone.
+   */
+  onDateEditBlur(course: Course, field: EditableField): void {
+    if (this.datePanelOpen) return;
+    this.onEditBlur(course, field);
+  }
+
+  /** Panel closed — by picking a date, clicking away, or Esc. Commit whatever the buffer holds. */
+  onDatePanelClose(course: Course, field: EditableField): void {
+    this.datePanelOpen = false;
+    this.onEditBlur(course, field);
   }
 
   /**

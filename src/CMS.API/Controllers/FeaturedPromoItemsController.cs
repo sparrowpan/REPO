@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using CMS.API.Models;
 using CMS.API.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -63,5 +64,11 @@ public class FeaturedPromoItemsController(IFeaturedPromoItemRepository repositor
 public class MoveSlotRequest
 {
     public int Pkid { get; set; }
+
+    /// <summary>
+    /// Target slot. The board renders slots 1-3 only, and slot 0 is the swap sentinel — an
+    /// out-of-range value would move the row somewhere the UI cannot show or recover it.
+    /// </summary>
+    [Range(1, 3)]
     public byte TargetSlot { get; set; }
 }

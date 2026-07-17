@@ -56,6 +56,13 @@ CLAUDE.md carries only a short summary — the detail lives here.
   - Persist on blur/change → `validate` → skip-if-unchanged → rebuild the full `{Table}Request` from the row → `update`.
     Validation failure shows an inline `editError` and keeps the cell open; save failure reverts (row signal is only
     mutated on success) + toast. FK-select edits refresh the nested lookup label from the lookup signal.
+  - **`p-datepicker` cells must not persist on raw `(onBlur)`.** Its overlay is `appendTo="body"`, so pressing the
+    mouse on a date blurs the input *before* the click selects it — a plain blur handler sees the value unchanged,
+    closes the cell, and destroys the panel mid-click, so the pick is silently lost. Wire
+    `(onShow)`/`(onClose)` to track the panel and ignore any blur while it is open; commit on `(onSelect)` and
+    `(onClose)`. Guards in `onEditBlur` (`!isEditing` / `savingCell`) keep the overlapping events to one save.
+  - Cover date cells by driving the real event order (blur → `ngModelChange` → `onSelect` → `onClose`), not by
+    calling `onEditBlur` directly — a direct call cannot reproduce the ordering bug above.
 
   ### Form page
   - Reactive Forms; `forkJoin` for parallel lookup calls on init; immutable business keys disabled in edit.
@@ -97,3 +104,17 @@ CLAUDE.md carries only a short summary — the detail lives here.
   | PUT    | `/api/{plural}` | Update (pkid in body) |
   | DELETE | `/api/{plural}/{id}` | Delete |
   | GET    | `/api/lookups/{plural}` | Slim lookup list (if used as FK target) |
+
+## Environment (dev)
+
+  Run/test commands live in `CLAUDE.md`; these are the settings behind them.
+
+  - **DB connection string** — `src/CMS.API/appsettings.json` → `ConnectionStrings:CMS`. That file is the
+    source of truth; it currently points at `Server=.\SQLEXPRESS;Database=CMS;Trusted_Connection=True;`
+    `TrustServerCertificate=True;Encrypt=False` (local SQL Express, no TLS — dev only).
+  - **Ports** — API `http://localhost:5000` (via `launchSettings.json`), Angular `http://localhost:4200`.
+  - **CORS** — `Program.cs` allows any loopback origin, which is a dev convenience, not a deployable policy.
+  - **Tests need no database.** `CmsApiFactory` swaps every repo for an in-memory fake, so the backend suite
+    runs anywhere (see Backend → Tests). The one exception is `PublishStatusRepositoryAuditTests`, which runs
+    the real repository against in-memory **SQLite** — that works only because PublishStatus SQL is
+    provider-portable (user-entered PK, no `SCOPE_IDENTITY()`).
