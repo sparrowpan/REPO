@@ -58,7 +58,7 @@
           }
         </td>
         <td>{{ user.roleCount }}</td>
-        <td>{{ user.passwordUpdatedTime ? (user.passwordUpdatedTime + 'Z' | date: 'yyyy-MM-dd HH:mm') : '—' }}</td>
+        <td>{{ user.passwordUpdatedTime ? (user.passwordUpdatedTime | date: 'yyyy-MM-dd HH:mm') : '—' }}</td>
         <td>
           <div class="row-actions">
             <button pButton type="button" class="p-button-text p-button-rounded" pTooltip="檢視"
