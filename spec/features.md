@@ -1,9 +1,27 @@
 # Implemented features (as-built notes)
 
-Per-feature implementation notes for features already built. Read the relevant section only when a
-task touches that feature. Build **new** features from `spec/code-gen.convention.md` + the per-feature
-build spec (`spec/{schema}/{Table}.md`), then append an as-built section here. Keep CLAUDE.md's
-feature index in sync (one line per feature).
+The index below is the canonical list of what exists — CLAUDE.md points here rather than repeating it.
+Read the relevant section only when a task touches that feature. Build **new** features from
+`spec/code-gen.convention.md` + the per-feature build spec (`spec/{schema}/{Table}.md`), then add a row
+to the index and append an as-built section below.
+
+## Index
+
+Triad (list/detail/form) unless noted. ⚠ = no as-built section in this file yet.
+
+| Feature | Route | Schema | Notes |
+|---------|-------|--------|-------|
+| AppRole 角色 | `/app-roles` | auth | **Reference feature** — copy its structure. String PK; n-n AppUser; Admin-only |
+| AppUser 使用者 | `/app-users` | auth | String PK; n-n AppRole; backend-only `PasswordHash`; `…/reset-password`; Admin-only |
+| Course 課程 | `/courses` | course | ⚠ **Inline-edit reference**; n-n JobCategory + Certification |
+| CourseGroup 課程群組 | `/course-groups` | course | ⚠ |
+| Partner 合作廠商 | `/partners` | course | ⚠ |
+| PublishStatus 發布狀態 | `/publish-statuses` | admin | ⚠ User-entered PK; real-DB (SQLite) audit tests |
+| FeaturedPromoItem 上稿作業 | `/featured-promo-items` | promotion | **Not a triad** — weekly board; slot `/move`; spec in `spec/custom/` |
+| Auth 登入 | `/login`, `/profile`, `POST /api/Auth/*` | auth | Login + JWT; My Profile + Change Password |
+| CourseBrochure 課程簡介 | on `/courses/:id` | course | **Print doc**, no API/route; prose via `@core/utils/prose-html.util`, never `pre-wrap` |
+| RowAudit 異動記錄 | `GET /api/rowaudit` | `dbo.RowAudit` | Cross-cutting — see its section |
+| ErrorHandling 錯誤處理 | middleware + interceptor | — | Cross-cutting — see its section |
 
 ## AppRole (角色) — reference feature
 

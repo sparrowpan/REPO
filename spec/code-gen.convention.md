@@ -56,6 +56,15 @@ CLAUDE.md carries only a short summary — the detail lives here.
   - Persist on blur/change → `validate` → skip-if-unchanged → rebuild the full `{Table}Request` from the row → `update`.
     Validation failure shows an inline `editError` and keeps the cell open; save failure reverts (row signal is only
     mutated on success) + toast. FK-select edits refresh the nested lookup label from the lookup signal.
+  - **Rebuilding the request from a list row only works if the row carries every field the request writes.**
+    `PUT` is a full replace and n-n sync is delete-then-reinsert, so any n-n array the row is missing arrives
+    as `[]` and **wipes those links** — silently, on an edit to an unrelated column, with a success toast, and
+    n-n changes are not audited so nothing records what was lost. A list `SELECT` that returns only
+    `{Nn}Count` (the natural shape) is exactly this trap. Either return the id arrays on the list query too
+    (`CourseRepository.AttachLinkIdsAsync` — batched, not a subquery per row) or don't reuse the row as a
+    write DTO. Fixed for Course in `9ef16b8`; regression: `CourseRepositoryLinkIdsTests.cs`.
+    **The API fakes cannot catch this** — `Fake{Table}Repository` hands the ids back from list *and* detail,
+    so it is more generous than the real SQL. Assert list-query shape against a real DB (see Backend → Tests).
   - **`p-datepicker` cells must not persist on raw `(onBlur)`.** Its overlay is `appendTo="body"`, so pressing the
     mouse on a date blurs the input *before* the click selects it — a plain blur handler sees the value unchanged,
     closes the cell, and destroys the panel mid-click, so the pick is silently lost. Wire
@@ -89,9 +98,27 @@ CLAUDE.md carries only a short summary — the detail lives here.
   |-------------|---------|
   | `nchar(n)` | `RTRIM()` in all SQL SELECTs |
   | `time(7)` | C# `TimeOnly` via `TimeOnlyTypeHandler`; display with `\| slice:0:5`; `p-datepicker [timeOnly]` in form |
-  | `date` | C# `DateOnly` via `DateOnlyTypeHandler`; `p-datepicker` in form |
+  | `date` | C# `DateOnly` via `DateOnlyTypeHandler`; `p-datepicker` in form; bind raw — see Local time |
+  | `datetime` | Local, unmarked — see Local time. Bind raw |
   | `smallint` PK | No special handling |
   | `nvarchar` PK (string) | Controller route `{id}` (no `:int`); service calls `encodeURIComponent(id)` |
+
+  ### Local time — the whole app, both directions
+
+  **Every timestamp this app stores is local.** Writes use `DateTime.Now` (`RowAuditWriter`,
+  `AppUserRepository`) or `GETDATE()` (`ResetPasswordAsync`, `AuthRepository.ChangePassword`); only
+  `JwtTokenService` uses `UtcNow`, for token lifetime. They serialize with **no timezone designator**
+  (`"2026-07-17T13:44:13.29"`).
+
+  - **Reading — bind the value raw.** An unmarked date-time parses as local, which is already correct.
+    `{{ v | date: '...' }}`. `row-audit-badge.html` is the reference.
+  - **Never append `'Z'`** (or otherwise mark it UTC). That re-converts local→local and renders **+8** for
+    the Taipei team — a password reset at 13:44 showed 21:44. Fixed in `5a9d8ed`; regression:
+    `app-user-list.regression-1.spec.ts`.
+  - **Never `toISOString()`** when serializing a picked date — it converts to UTC first and shifts the **day**.
+    Use `@core/utils/date.util` (`toIso`/`fromIso`, local components only).
+  - Both directions are invisible at offset zero, so a **UTC CI cannot catch either** — these only
+    discriminate where the offset is non-zero. Assert the input's own wall clock survives.
 
 ## API Endpoints
 
@@ -115,6 +142,12 @@ CLAUDE.md carries only a short summary — the detail lives here.
   - **Ports** — API `http://localhost:5000` (via `launchSettings.json`), Angular `http://localhost:4200`.
   - **CORS** — `Program.cs` allows any loopback origin, which is a dev convenience, not a deployable policy.
   - **Tests need no database.** `CmsApiFactory` swaps every repo for an in-memory fake, so the backend suite
-    runs anywhere (see Backend → Tests). The one exception is `PublishStatusRepositoryAuditTests`, which runs
-    the real repository against in-memory **SQLite** — that works only because PublishStatus SQL is
-    provider-portable (user-entered PK, no `SCOPE_IDENTITY()`).
+    runs anywhere (see Backend → Tests). Two suites are the exception, both running a **real** repository
+    against in-memory **SQLite**: `PublishStatusRepositoryAuditTests` (audit rows) and
+    `CourseRepositoryLinkIdsTests` (list-query shape). That only works for provider-portable SQL — a
+    user-entered PK with no `SCOPE_IDENTITY()`, and no `'%' + @x + '%'` concatenation (SQLite uses `||`),
+    which is why the Course suite covers `GetAllAsync` and not `QueryAsync`.
+  - **Windows:** a running `CMS.API` locks `bin/Debug/net9.0/CMS.API.exe`, so `dotnet build`/`dotnet test`
+    fails with `MSB3027`. Stop it first — `dotnet test` on `CMS.API.Tests` rebuilds the API and hits this
+    too, even though the tests need no DB. `sqlcmd` against `.\SQLEXPRESS` needs `-C` (ODBC Driver 18
+    rejects the cert otherwise).
