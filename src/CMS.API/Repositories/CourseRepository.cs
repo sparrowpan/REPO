@@ -50,13 +50,49 @@ public sealed class CourseRepository(IDbConnectionFactory connectionFactory, Row
         return course;
     }
 
+    /// <summary>
+    /// Fill <see cref="Course.JobCategoryPkids"/> / <see cref="Course.CertificationPkids"/> on list rows.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SelectColumns"/> carries only the n-n *counts*, so without this every list row would
+    /// arrive with empty id lists — and the list reuses its rows to build the write DTO for inline edit,
+    /// so those empties would be PUT back and wipe the links (the sync is delete-then-reinsert). Two
+    /// batched round trips rather than a correlated subquery per row: the join tables are small and the
+    /// query is unpaged, so the per-row form would run thousands of seeks to rebuild the same map.
+    /// </remarks>
+    private static async Task AttachLinkIdsAsync(IDbConnection conn, List<Course> courses, CancellationToken ct)
+    {
+        if (courses.Count == 0)
+            return;
+
+        var jobLinks = await conn.QueryAsync<(int CoursePkid, short LinkPkid)>(new CommandDefinition("""
+            SELECT Course_pkid, JobCategory_pkid FROM CourseJobCategories ORDER BY JobCategory_pkid;
+            """, cancellationToken: ct));
+        var certLinks = await conn.QueryAsync<(int CoursePkid, int LinkPkid)>(new CommandDefinition("""
+            SELECT Course_pkid, Certification_pkid FROM CourseInCertification ORDER BY Certification_pkid;
+            """, cancellationToken: ct));
+
+        var jobByCourse = jobLinks.GroupBy(l => l.CoursePkid)
+            .ToDictionary(g => g.Key, g => g.Select(l => l.LinkPkid).ToList());
+        var certByCourse = certLinks.GroupBy(l => l.CoursePkid)
+            .ToDictionary(g => g.Key, g => g.Select(l => l.LinkPkid).ToList());
+
+        foreach (var course in courses)
+        {
+            course.JobCategoryPkids = jobByCourse.TryGetValue(course.Pkid, out var jobs) ? jobs : [];
+            course.CertificationPkids = certByCourse.TryGetValue(course.Pkid, out var certs) ? certs : [];
+        }
+    }
+
     public async Task<IReadOnlyList<Course>> GetAllAsync(CancellationToken ct = default)
     {
         using var conn = await connectionFactory.CreateOpenConnectionAsync(ct);
         var sql = $"{SelectColumns} ORDER BY c.DisplayOrder ASC, c.pkid DESC";
         var rows = await conn.QueryAsync<Course, PartnerLookup, CourseGroupLookup, PublishStatusLookup, Course>(
             new CommandDefinition(sql, cancellationToken: ct), MapRow, splitOn: SplitOn);
-        return rows.ToList();
+        var courses = rows.ToList();
+        await AttachLinkIdsAsync(conn, courses, ct);
+        return courses;
     }
 
     public async Task<IReadOnlyList<Course>> QueryAsync(CourseQuery query, CancellationToken ct = default)
@@ -94,7 +130,9 @@ public sealed class CourseRepository(IDbConnectionFactory connectionFactory, Row
         };
         var rows = await conn.QueryAsync<Course, PartnerLookup, CourseGroupLookup, PublishStatusLookup, Course>(
             new CommandDefinition(sql, parameters, cancellationToken: ct), MapRow, splitOn: SplitOn);
-        return rows.ToList();
+        var courses = rows.ToList();
+        await AttachLinkIdsAsync(conn, courses, ct);
+        return courses;
     }
 
     public async Task<Course?> GetByPkidAsync(int pkid, CancellationToken ct = default)
