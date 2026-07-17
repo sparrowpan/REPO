@@ -246,6 +246,21 @@ list/detail/form feature — middleware on the backend, interceptor policy on th
 - **Because the middleware handles them, controllers write no try/catch for *unexpected* errors** and never
   return raw exception text — let it escape and the middleware does the rest. Catch only what you can improve
   on for the caller (400, 409).
+- **Referenced-row deletes are one such improvable case → `409`, never `500`.** Deleting a `PublishStatus` /
+  `Partner` / `CourseGroup` still assigned to a `Course` raises SQL Server's FK violation (error 547). Left
+  alone it reaches the middleware and becomes the generic 500, which reads as an outage rather than a routine
+  refusal. So the **repository** catches 547 and throws `Infrastructure/ReferencedRecordException.cs`
+  (`IsForeignKeyViolation(ex)` does the detection; the exception carries the table name and no SQL text), and
+  the **controller** catches *that* and returns `409 { message }` naming the entity — the same
+  repository-throws / controller-maps split as the duplicate-key 409s. Add both halves when a new entity
+  becomes FK-referenced; the repo throwing alone still 500s. **The delete tx rolls back either way — this is
+  an error-surface fix, not a data-safety one.**
+- **A 409 on a list page needs the component's help.** The interceptor only toasts 5xx, so a delete handler
+  that hardcodes its `detail` silently swallows the server's reason. List delete handlers use
+  `err.status === 409 ? (err.error?.message ?? fallback) : generic`, the same idiom the forms already use for
+  duplicate keys. Tests: `PublishStatusesDeleteReferencedTests.cs` (4) + `Fakes/ReferencedPublishStatusRepository.cs`,
+  which throws the already-translated exception — `SqlException` has no public constructor, so the 547→domain
+  translation itself is only exercisable against a real database.
 - **Being registered first also puts it *inside* the Developer Exception Page** that minimal hosting adds
   automatically in Development — an exception unwinds to the innermost handler, so this middleware answers
   the client in every environment. Tests rely on that (`CmsApiFactory` forces `Development`).
