@@ -324,7 +324,7 @@ unless noted:
 - `FeaturedPromoItem` 7/13 slots — reordered, **restored** to original order.
 - `PublishStatus 99` — created and deleted while testing the happy path. Gone.
 - `AppUser barry` — renamed to `HACKED` during the escalation test, **restored to `Barry Chung`**.
-- ⚠️ **`AppUser barry@uuu.com.tw` password was reset to the default (`CMS4fun#`)** while testing 重設密碼. **Not restored** — the original is unknown and unrecoverable by design. Reset it if that account matters.
+- **`AppUser barry@uuu.com.tw` password was reset to the default (`CMS4fun#`)** while testing 重設密碼. The original is a one-way hash — unrecoverable by design, so no reset can restore it. **Resolved 2026-07-17: left at the default deliberately.** That is exactly the state the reset feature intends (admin resets → user sets their own), so re-running it would be a no-op. Barry needs telling: log in with `CMS4fun#`, then 個人資料 My Profile → 變更密碼. Account verified healthy — `isActive: true`, login returns 200. Note the reset wrote **no audit row** (the documented `ResetPasswordAsync` gap), which is why this had to be reported by hand rather than being visible in his history.
 - Miles's password was never changed (only wrong-password paths were exercised).
 
 Your API (`dotnet run`) was restarted twice to build the API fix — it's running again.
