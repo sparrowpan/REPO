@@ -1,0 +1,33 @@
+{
+  "date": "2026-07-17",
+  "url": "http://localhost:4200",
+  "branch": "develop",
+  "tier": "standard",
+  "healthScore": 97,
+  "baselineHealthScore": 78,
+  "issues": [
+    { "id": "ISSUE-004", "title": "Course inline edit silently wipes JobCategory/Certification n-n links", "severity": "critical", "category": "functional", "status": "fixed", "commit": "9ef16b8" },
+    { "id": "ISSUE-001", "title": "AppUser password time rendered +8h (local string marked as UTC)", "severity": "high", "category": "functional", "status": "fixed", "commit": "5a9d8ed" },
+    { "id": "ISSUE-002", "title": "Delete of FK-referenced record returns generic 500 instead of 409", "severity": "medium", "category": "functional", "status": "fixed", "commit": "4ff2f5a" },
+    { "id": "ISSUE-003", "title": "Row action buttons have no accessible name", "severity": "medium", "category": "accessibility", "status": "fixed", "commit": "a683d27" },
+    { "id": "ISSUE-005", "title": "Topbar Search and Settings buttons are inert", "severity": "low", "category": "ux", "status": "deferred" },
+    { "id": "ISSUE-006", "title": "Table headers wrap per-character below ~900px viewport", "severity": "low", "category": "visual", "status": "deferred" },
+    { "id": "ISSUE-007", "title": "p-invalid red border applied inconsistently across forms", "severity": "low", "category": "visual", "status": "deferred" }
+  ],
+  "knownGaps": [
+    { "id": "GAP-001", "title": "ResetPasswordAsync and MoveToSlotAsync write no RowAudit row", "note": "documented deferral in spec/features.md, not a QA finding" },
+    { "id": "GAP-002", "title": "RowAudit excludes n-n collections by design", "note": "why ISSUE-004's data loss was untraceable" }
+  ],
+  "dataLoss": {
+    "issue": "ISSUE-004",
+    "coursesEverInlineEdited": 2,
+    "confirmedWiped": [3334],
+    "intact": [3332],
+    "caveat": "RowAudit's earliest Course update is 2026-07-16; pre-audit inline edits left no trace"
+  },
+  "categoryScores": {
+    "console": 100, "links": 100, "visual": 94, "functional": 100,
+    "ux": 94, "performance": 100, "content": 100, "accessibility": 100
+  },
+  "tests": { "angular": { "before": 275, "after": 278 }, "api": { "before": 176, "after": 184 } }
+}
