@@ -1,0 +1,104 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="page-card page-header">
+  <div class="page-header__title">
+    <h2>上稿作業 FeaturedPromoItem</h2>
+    <span class="page-header__subtitle">首頁精選活動排程</span>
+  </div>
+</div>
+
+<div class="page-card board">
+  <!-- Training-center tabs -->
+  <div class="tabs">
+    @for (center of centers(); track center.pkid) {
+      <button
+        type="button"
+        class="tab"
+        [class.tab--active]="activeCenter() === center.pkid"
+        (click)="selectCenter(center.pkid)"
+      >
+        {{ center.name }}
+      </button>
+    }
+  </div>
+
+  <!-- Week navigation (Monday–Sunday) -->
+  <div class="weeknav">
+    <button type="button" class="weeknav__btn" (click)="prevWeek()" aria-label="上一週">&lt;&lt;--</button>
+    <span class="weeknav__label">{{ weekLabel() }}</span>
+    <button type="button" class="weeknav__btn" (click)="nextWeek()" aria-label="下一週">--&gt;&gt;</button>
+  </div>
+
+  <!-- One block per day, three slots each -->
+  @for (day of weekDays(); track day.getTime()) {
+    <section class="day">
+      <div class="day__header">{{ weekdayLabel(day) }}</div>
+
+      @for (slot of slots; track slot) {
+        @let item = itemAt(day, slot);
+        <div class="slotrow" [class.slotrow--editing]="isEditing(day, slot)">
+          @if (isEditing(day, slot)) {
+            <!-- Inline Edit / New / Paste form -->
+            <div class="cellform">
+              <div class="cellform__field">
+                <label>PromoCode:</label>
+                <input
+                  pInputText
+                  class="cellform__input"
+                  [(ngModel)]="editModel.promoCode"
+                  (blur)="resolvePromoCode()"
+                  placeholder="輸入活動代碼後自動帶入"
+                />
+              </div>
+              <div class="cellform__field">
+                <label>Topic:</label>
+                <input pInputText class="cellform__input" [(ngModel)]="editModel.topic" />
+              </div>
+              <div class="cellform__field">
+                <label>Description:</label>
+                <input pInputText class="cellform__input" [(ngModel)]="editModel.description" />
+              </div>
+              <div class="cellform__actions">
+                <a class="link" (click)="save(day, slot)">Save</a>
+                <a class="link" (click)="cancelEdit()">Cancel</a>
+              </div>
+            </div>
+          } @else {
+            <span class="slotrow__no">{{ slot }}</span>
+
+            @if (item) {
+              <span class="acts">
+                <a class="link" [class.link--disabled]="slot >= 3" (click)="moveDown(item)" title="下移版位">+</a>
+                <a class="link" [class.link--disabled]="slot <= 1" (click)="moveUp(item)" title="上移版位">−</a>
+                <a class="link" (click)="startEdit(day, slot)">Edit</a>
+                <a class="link" (click)="copy(item)">Copy</a>
+                <a class="link link--danger" (click)="confirmDelete(item)">Delete</a>
+              </span>
+              <span class="field field--code">{{ item.promoCode }}</span>
+              <span class="field field--topic">{{ item.topic }}</span>
+              <span class="field field--desc">{{ item.description }}</span>
+            } @else {
+              <span class="acts">
+                <a class="link" (click)="startEdit(day, slot)">Edit</a>
+                <a
+                  class="link"
+                  [class.link--disabled]="!clipboard()"
+                  (click)="clipboard() && startPaste(day, slot)"
+                  >Paste</a
+                >
+              </span>
+              <span class="field field--code field--empty"></span>
+              <span class="field field--topic field--empty"></span>
+              <span class="field field--desc field--empty"></span>
+            }
+          }
+        </div>
+      }
+    </section>
+  }
+
+  @if (!loading() && centers().length === 0) {
+    <div class="empty">查無訓練中心資料</div>
+  }
+</div>

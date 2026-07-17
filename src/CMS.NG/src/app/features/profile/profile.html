@@ -1,0 +1,126 @@
+<p-toast />
+
+<div class="page-card page-header">
+  <div class="page-header__title">
+    <h2>個人資料 My Profile</h2>
+    @if (auth.profile(); as p) {
+      <span class="page-header__subtitle">{{ p.userId }}</span>
+    }
+  </div>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <div class="page-card">
+    <h3 class="section-title">帳號資訊 Account</h3>
+
+    <div class="form-field">
+      <label for="userId">使用者代碼 User ID</label>
+      <input
+        pInputText
+        id="userId"
+        [value]="auth.profile()?.userId ?? ''"
+        readonly
+        aria-readonly="true"
+      />
+      <small class="hint">使用者代碼不可變更。</small>
+    </div>
+
+    <div class="form-field">
+      <label for="userName">使用者名稱 User Name <span class="req">*</span></label>
+      <input pInputText id="userName" formControlName="userName" placeholder="請輸入使用者名稱" />
+      @if (form.controls.userName.invalid && form.controls.userName.touched) {
+        <small class="err">使用者名稱為必填。</small>
+      }
+    </div>
+
+    <div class="form-field">
+      <label>角色 Roles</label>
+      @if (auth.roles().length) {
+        <div class="role-tags">
+          @for (role of auth.roles(); track role) {
+            <p-tag [value]="role" severity="secondary" />
+          }
+        </div>
+      } @else {
+        <p class="muted">尚未指派角色。</p>
+      }
+      <small class="hint">角色由系統管理員設定，此處僅供檢視。</small>
+    </div>
+  </div>
+
+  <div class="page-card page-actions">
+    <button pButton type="submit" class="p-button-success" [disabled]="saving()">
+      <i class="pi pi-check"></i>&nbsp;儲存 Save
+    </button>
+  </div>
+</form>
+
+<form [formGroup]="passwordForm" (ngSubmit)="changePassword()">
+  <div class="page-card">
+    <h3 class="section-title">變更密碼 Change Password</h3>
+
+    <div class="form-field">
+      <label for="currentPassword">目前密碼 Current Password <span class="req">*</span></label>
+      <input
+        pInputText
+        id="currentPassword"
+        type="password"
+        autocomplete="current-password"
+        formControlName="currentPassword"
+        placeholder="請輸入目前密碼"
+      />
+      @if (passwordForm.controls.currentPassword.invalid && passwordForm.controls.currentPassword.touched) {
+        <small class="err">請輸入目前密碼。Current password is required.</small>
+      }
+    </div>
+
+    <div class="form-field">
+      <label for="newPassword">新密碼 New Password <span class="req">*</span></label>
+      <input
+        pInputText
+        id="newPassword"
+        type="password"
+        autocomplete="new-password"
+        formControlName="newPassword"
+        placeholder="請輸入新密碼"
+      />
+      @if (
+        passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.hasError('required')
+      ) {
+        <small class="err">請輸入新密碼。New password is required.</small>
+      } @else if (
+        passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.hasError('complexity')
+      ) {
+        <small class="err">{{ complexityMessage }}</small>
+      } @else {
+        <small class="hint">{{ complexityMessage }}</small>
+      }
+    </div>
+
+    <div class="form-field">
+      <label for="confirmNewPassword">確認新密碼 Confirm New Password <span class="req">*</span></label>
+      <input
+        pInputText
+        id="confirmNewPassword"
+        type="password"
+        autocomplete="new-password"
+        formControlName="confirmNewPassword"
+        placeholder="請再次輸入新密碼"
+      />
+      @if (
+        passwordForm.controls.confirmNewPassword.touched &&
+        passwordForm.controls.confirmNewPassword.hasError('required')
+      ) {
+        <small class="err">請再次輸入新密碼。Confirmation is required.</small>
+      } @else if (passwordForm.hasError('mismatch') && passwordForm.controls.confirmNewPassword.touched) {
+        <small class="err">新密碼與確認密碼不一致。New password and confirmation do not match.</small>
+      }
+    </div>
+  </div>
+
+  <div class="page-card page-actions">
+    <button pButton type="submit" class="p-button-success" [disabled]="changingPassword()">
+      <i class="pi pi-lock"></i>&nbsp;變更密碼 Change Password
+    </button>
+  </div>
+</form>

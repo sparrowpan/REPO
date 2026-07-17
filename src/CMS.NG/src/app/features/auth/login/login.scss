@@ -1,0 +1,85 @@
+.login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+  background: var(--p-surface-100, #f1f5f9);
+}
+
+.login__card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 2rem;
+  background: var(--p-surface-0, #fff);
+  border: 1px solid var(--p-surface-200, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 8%);
+}
+
+.login__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.login__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-weight: 700;
+  background: var(--p-primary-color);
+  color: var(--p-primary-contrast-color, #fff);
+}
+
+.login__brand-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.login__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--p-text-muted-color, #64748b);
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.form-field input {
+  width: 100%;
+}
+
+.err {
+  color: var(--p-red-500, #ef4444);
+  font-size: 0.8rem;
+}
+
+.login__error {
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--p-red-700, #b91c1c);
+  background: var(--p-red-50, #fef2f2);
+  border: 1px solid var(--p-red-200, #fecaca);
+}
+
+.login__submit {
+  justify-content: center;
+  width: 100%;
+}

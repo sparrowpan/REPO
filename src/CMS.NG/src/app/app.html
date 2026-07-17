@@ -1,62 +1,79 @@
-<div class="layout" [class.layout--collapsed]="collapsed()">
-  <!-- Topbar -->
-  <header class="topbar">
-    <div class="topbar__left">
-      <button type="button" class="topbar__toggle" (click)="toggleCollapse()" aria-label="Toggle menu">
-        <i class="pi pi-bars"></i>
-      </button>
-      <a class="topbar__brand" routerLink="/app-roles">
-        <span class="topbar__logo">U</span>
-        <span class="topbar__brand-text">UWA</span>
-      </a>
-    </div>
-    <div class="topbar__right">
-      <button type="button" class="topbar__action" aria-label="Search"><i class="pi pi-search"></i></button>
-      <button type="button" class="topbar__action" aria-label="Settings"><i class="pi pi-cog"></i></button>
-      <button type="button" class="topbar__action topbar__avatar" aria-label="Profile"><i class="pi pi-user"></i></button>
-    </div>
-  </header>
+<!-- Outside the auth check on purpose: a 5xx raised by authInterceptor must surface on the login
+     screen too. App deliberately does not provide MessageService, so this host binds to the root
+     instance the interceptor injects. -->
+<p-toast />
 
-  <div class="layout__body">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <nav class="sidebar__nav">
-        @for (section of navSections; track section.title) {
-          <div class="menu-section">
-            <span class="menu-section__title">{{ section.title }}</span>
-
-            @for (group of section.groups; track group.label) {
-              <div class="nav-group">
-                <button type="button" class="nav-item nav-item--parent" (click)="toggleGroup(group.label)"
-                        [class.nav-item--open]="isExpanded(group.label)">
-                  <i class="nav-item__icon" [class]="group.icon"></i>
-                  <span class="nav-item__label">{{ group.label }}</span>
-                  @if (group.children.length) {
-                    <i class="nav-item__chevron pi pi-angle-down"></i>
-                  }
-                </button>
-
-                @if (group.children.length && isExpanded(group.label)) {
-                  <div class="nav-submenu">
-                    @for (child of group.children; track child.route) {
-                      <a class="nav-item nav-item--child" [routerLink]="child.route"
-                         routerLinkActive="nav-item--active">
-                        <i class="nav-item__icon" [class]="child.icon"></i>
-                        <span class="nav-item__label">{{ child.label }}</span>
-                      </a>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          </div>
+@if (auth.isAuthenticated()) {
+  <div class="layout" [class.layout--collapsed]="collapsed()">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar__left">
+        <button type="button" class="topbar__toggle" (click)="toggleCollapse()" aria-label="Toggle menu">
+          <i class="pi pi-bars"></i>
+        </button>
+        <a class="topbar__brand" routerLink="/app-roles">
+          <span class="topbar__logo">U</span>
+          <span class="topbar__brand-text">UWA</span>
+        </a>
+      </div>
+      <div class="topbar__right">
+        <button type="button" class="topbar__action" aria-label="Search"><i class="pi pi-search"></i></button>
+        <button type="button" class="topbar__action" aria-label="Settings"><i class="pi pi-cog"></i></button>
+        @if (auth.userName(); as name) {
+          <button type="button" class="topbar__user" (click)="userMenu.toggle($event)"
+                  aria-haspopup="true" aria-label="User menu">
+            <i class="pi pi-user"></i>
+            <span class="topbar__user-name">{{ name }}</span>
+            <i class="pi pi-angle-down topbar__user-caret"></i>
+          </button>
+          <p-menu #userMenu [model]="userMenuItems" [popup]="true" appendTo="body" />
         }
-      </nav>
-    </aside>
+      </div>
+    </header>
 
-    <!-- Content -->
-    <main class="content">
-      <router-outlet />
-    </main>
+    <div class="layout__body">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <nav class="sidebar__nav">
+          @for (section of visibleSections(); track section.title) {
+            <div class="menu-section">
+              <span class="menu-section__title">{{ section.title }}</span>
+
+              @for (group of section.groups; track group.label) {
+                <div class="nav-group">
+                  <button type="button" class="nav-item nav-item--parent" (click)="toggleGroup(group.label)"
+                          [class.nav-item--open]="isExpanded(group.label)">
+                    <i class="nav-item__icon" [class]="group.icon"></i>
+                    <span class="nav-item__label">{{ group.label }}</span>
+                    @if (group.children.length) {
+                      <i class="nav-item__chevron pi pi-angle-down"></i>
+                    }
+                  </button>
+
+                  @if (group.children.length && isExpanded(group.label)) {
+                    <div class="nav-submenu">
+                      @for (child of group.children; track child.route) {
+                        <a class="nav-item nav-item--child" [routerLink]="child.route"
+                           routerLinkActive="nav-item--active">
+                          <i class="nav-item__icon" [class]="child.icon"></i>
+                          <span class="nav-item__label">{{ child.label }}</span>
+                        </a>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </nav>
+      </aside>
+
+      <!-- Content -->
+      <main class="content">
+        <router-outlet />
+      </main>
+    </div>
   </div>
-</div>
+} @else {
+  <router-outlet />
+}

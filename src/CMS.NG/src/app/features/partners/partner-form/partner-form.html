@@ -1,0 +1,71 @@
+<p-toast />
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <div class="page-card page-header">
+    <div class="page-header__title">
+      <h2>{{ isEdit() ? '編輯廠商' : '新增廠商' }}</h2>
+    </div>
+    <div class="page-header__actions">
+      <row-audit-badge tableName="Partner" [pkid]="auditPkid()" />
+      <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="cancel()">
+        <i class="pi pi-times"></i>&nbsp;取消
+      </button>
+      <button pButton type="submit" class="p-button-success" [disabled]="saving()">
+        <i class="pi pi-check"></i>&nbsp;儲存
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="page-card">載入中…</div>
+  } @else {
+    <div class="page-card">
+      <h3 class="section-title">廠商資料</h3>
+
+      <div class="form-field">
+        <label for="name">廠商名稱 <span class="req">*</span></label>
+        <input pInputText id="name" formControlName="name" maxlength="50" />
+        @if (form.controls.name.invalid && form.controls.name.touched) {
+          <small class="err">廠商名稱為必填。</small>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="appKey">廠商代碼 <span class="req">*</span></label>
+        <input pInputText id="appKey" formControlName="appKey" maxlength="10" />
+        @if (form.controls.appKey.invalid && form.controls.appKey.touched) {
+          <small class="err">廠商代碼為必填。</small>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="nameOnPartnerMenu">選單顯示名稱 <span class="req">*</span></label>
+        <input pInputText id="nameOnPartnerMenu" formControlName="nameOnPartnerMenu" maxlength="200" />
+        @if (form.controls.nameOnPartnerMenu.invalid && form.controls.nameOnPartnerMenu.touched) {
+          <small class="err">選單顯示名稱為必填。</small>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="nameOnCourseDetailPage">課程頁顯示名稱 <span class="req">*</span></label>
+        <input pInputText id="nameOnCourseDetailPage" formControlName="nameOnCourseDetailPage" maxlength="50" />
+        @if (form.controls.nameOnCourseDetailPage.invalid && form.controls.nameOnCourseDetailPage.touched) {
+          <small class="err">課程頁顯示名稱為必填。</small>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="displayOrder">顯示順序 <span class="req">*</span></label>
+        <p-inputNumber inputId="displayOrder" formControlName="displayOrder" [useGrouping]="false" />
+        @if (form.controls.displayOrder.invalid && form.controls.displayOrder.touched) {
+          <small class="err">顯示順序為必填。</small>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="imageFilename">圖檔名稱</label>
+        <input pInputText id="imageFilename" formControlName="imageFilename" maxlength="50" />
+      </div>
+    </div>
+  }
+</form>

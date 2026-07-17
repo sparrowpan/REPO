@@ -1,0 +1,55 @@
+.row-audit-badge {
+  // Let the label + inline latest stack tidily inside the button.
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.row-audit-badge__text {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.row-audit-badge__label {
+  font-weight: 600;
+}
+
+.row-audit-badge__latest {
+  font-size: 0.75rem;
+  opacity: 0.75;
+
+  &--empty {
+    font-style: italic;
+  }
+}
+
+.row-audit-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--surface-border, #e5e7eb);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &__time {
+    white-space: nowrap;
+  }
+}
+
+.row-audit-empty {
+  margin: 0;
+  padding: 1rem 0;
+  color: var(--text-color-secondary, #6b7280);
+  font-style: italic;
+}

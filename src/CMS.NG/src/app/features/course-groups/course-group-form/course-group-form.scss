@@ -1,0 +1,62 @@
+.page-card {
+  background: var(--p-content-background, #fff);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-header__title h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #1f2a37;
+}
+
+.page-header__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.section-title {
+  margin: 0 0 1.25rem;
+  font-size: 1.05rem;
+  color: #1f2a37;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.1rem;
+}
+
+.form-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.req {
+  color: #ef4444;
+}
+
+.err {
+  color: #ef4444;
+  font-size: 0.8rem;
+}
+
+/* Make PrimeNG inputs span the full width */
+.form-field input,
+.form-field :is(p-inputnumber) {
+  width: 100%;
+}

@@ -1,0 +1,79 @@
+.page-card {
+  background: var(--p-content-background, #fff);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-header__title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.page-header__title h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #0f766e;
+}
+
+.page-header__subtitle {
+  color: var(--p-text-muted-color, #94a3b8);
+  font-size: 0.9rem;
+}
+
+.page-header__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.link {
+  color: var(--p-primary-color);
+}
+
+.empty {
+  text-align: center;
+  padding: 2rem 0;
+  color: var(--p-text-muted-color, #94a3b8);
+}
+
+.filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.filter-field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.filter-field input {
+  width: 100%;
+}
+
+.filter-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}

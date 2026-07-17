@@ -1,0 +1,203 @@
+:host {
+  display: block;
+}
+
+.board {
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+/* --- Training-center tabs -------------------------------------------------- */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 2px solid var(--p-primary-color, #6366f1);
+  margin-bottom: 1rem;
+}
+
+.tab {
+  appearance: none;
+  border: 1px solid #d1d5db;
+  border-bottom: none;
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: #e5e7eb;
+  }
+
+  &--active {
+    background: #ffffff;
+    color: var(--p-primary-color, #6366f1);
+    font-weight: 600;
+    border-color: var(--p-primary-color, #6366f1);
+    position: relative;
+    top: 2px;
+  }
+}
+
+/* --- Week navigation ------------------------------------------------------- */
+.weeknav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 0.5rem 0 1.25rem;
+}
+
+.weeknav__btn {
+  appearance: none;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  font-family: monospace;
+  font-size: 0.95rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: #eef2ff;
+    border-color: var(--p-primary-color, #6366f1);
+  }
+}
+
+.weeknav__label {
+  font-weight: 600;
+  font-family: monospace;
+  font-size: 1rem;
+  color: #111827;
+}
+
+/* --- Day blocks ------------------------------------------------------------ */
+.day {
+  margin-bottom: 0.75rem;
+}
+
+.day__header {
+  background: #e5e7eb;
+  color: #374151;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+}
+
+.slotrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px dashed #f0f0f0;
+
+  &--editing {
+    background: #f8fafc;
+    border: 1px solid #111827;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+  }
+}
+
+.slotrow__no {
+  width: 1.25rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.acts {
+  display: inline-flex;
+  gap: 0.5rem;
+  min-width: 12rem;
+}
+
+.field {
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  background: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &--code {
+    flex: 0 0 20rem;
+  }
+  &--topic {
+    flex: 0 0 20rem;
+  }
+  &--desc {
+    flex: 1 1 auto;
+  }
+  &--empty {
+    background: #fcfcfc;
+    min-height: 1.9rem;
+  }
+}
+
+/* --- Inline text links (Edit / Copy / Delete / + / −) --------------------- */
+.link {
+  color: var(--p-primary-color, #6366f1);
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  user-select: none;
+
+  &:hover {
+    text-decoration: none;
+  }
+
+  &--danger {
+    color: #dc2626;
+  }
+
+  &--disabled {
+    color: #9ca3af;
+    cursor: default;
+    text-decoration: none;
+    pointer-events: none;
+  }
+}
+
+/* --- Inline cell form ------------------------------------------------------ */
+.cellform {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 60rem;
+}
+
+.cellform__field {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+
+  label {
+    font-size: 0.85rem;
+    color: #374151;
+  }
+}
+
+.cellform__input {
+  width: 100%;
+}
+
+.cellform__actions {
+  display: flex;
+  gap: 2rem;
+  padding-left: 7.5rem;
+  margin-top: 0.25rem;
+}
+
+.empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 2rem;
+}

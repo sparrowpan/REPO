@@ -15,6 +15,8 @@ import { AppRoleRequest } from '@core/models/app-role.model';
 import { AppUserLookup } from '@core/models/app-user-lookup.model';
 import { AppRoleService } from '@core/services/app-role.service';
 import { LookupService } from '@core/services/lookup.service';
+import { RowAuditBadge } from '@core/components/row-audit-badge/row-audit-badge';
+import { isServerError } from '@core/utils/http-error.util';
 
 @Component({
   selector: 'app-role-form',
@@ -26,6 +28,7 @@ import { LookupService } from '@core/services/lookup.service';
     InputNumberModule,
     MultiSelectModule,
     ToastModule,
+    RowAuditBadge,
   ],
   providers: [MessageService],
   templateUrl: './app-role-form.html',
@@ -43,6 +46,8 @@ export class AppRoleForm implements OnInit {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly users = signal<AppUserLookup[]>([]);
+  /** The edited record's pkid for the audit-history badge (0 in add mode → no history). */
+  protected readonly auditPkid = signal(0);
 
   private pkid = 0;
 
@@ -66,6 +71,7 @@ export class AppRoleForm implements OnInit {
         this.users.set(users);
         if (role) {
           this.pkid = role.pkid;
+          this.auditPkid.set(role.pkid);
           this.form.patchValue({
             roleId: role.roleId,
             roleName: role.roleName,
@@ -77,9 +83,10 @@ export class AppRoleForm implements OnInit {
         }
         this.loading.set(false);
       },
-      error: () => {
-        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
+        this.messages.add({ severity: 'error', summary: '載入失敗', detail: '無法載入資料。' });
       },
     });
   }
@@ -112,6 +119,7 @@ export class AppRoleForm implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.saving.set(false);
+        if (isServerError(err)) return; // the interceptor already reported this
         const detail =
           err.status === 409 ? (err.error?.message ?? '角色代碼已存在。') : '儲存角色時發生錯誤。';
         this.messages.add({ severity: 'error', summary: '儲存失敗', detail });

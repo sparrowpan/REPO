@@ -1,0 +1,90 @@
+.page-card {
+  background: var(--p-content-background, #fff);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  /* Freeze the Save/Cancel toolbar to the top of the content scroll region
+     while the form body scrolls underneath. `.content` (app.scss) is the scroll
+     container, so top:0 pins it flush at the top — just below the app topbar. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.page-header__title h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #1f2a37;
+}
+
+.page-header__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.section-title {
+  margin: 0 0 1.25rem;
+  font-size: 1.05rem;
+  color: #1f2a37;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.5rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-field--wide {
+  grid-column: 1 / -1;
+}
+
+.form-field--check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.req {
+  color: #ef4444;
+}
+
+.err {
+  color: #ef4444;
+  font-size: 0.8rem;
+}
+
+.form-field input,
+.form-field textarea {
+  width: 100%;
+}
+
+:host ::ng-deep .w-full {
+  width: 100%;
+}
+
+/* Wrap multiselect chips instead of truncating */
+:host ::ng-deep .p-multiselect-label {
+  white-space: normal;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}

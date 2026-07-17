@@ -1,0 +1,81 @@
+<p-toast />
+<p-confirmDialog />
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <div class="page-card page-header">
+    <div class="page-header__title">
+      <h2>{{ isEdit() ? '編輯使用者' : '新增使用者' }}</h2>
+    </div>
+    <div class="page-header__actions">
+      <row-audit-badge tableName="AppUser" [pkid]="auditPkid()" />
+      <button pButton type="button" class="p-button-outlined p-button-secondary" (click)="cancel()">
+        <i class="pi pi-times"></i>&nbsp;取消
+      </button>
+      @if (isEdit() && isAdmin()) {
+        <button
+          pButton
+          type="button"
+          class="p-button-outlined p-button-warn"
+          (click)="confirmResetPassword()"
+        >
+          <i class="pi pi-key"></i>&nbsp;重設密碼為預設值
+        </button>
+      }
+      <button pButton type="submit" class="p-button-success" [disabled]="saving()">
+        <i class="pi pi-check"></i>&nbsp;儲存
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="page-card">載入中…</div>
+  } @else {
+    <div class="page-card">
+      <h3 class="section-title">使用者資料</h3>
+
+      <div class="form-field">
+        <label for="userId">使用者代碼 <span class="req">*</span></label>
+        <input pInputText id="userId" formControlName="userId" placeholder="請輸入使用者代碼" />
+        @if (form.controls.userId.invalid && form.controls.userId.touched) {
+          <small class="err">使用者代碼為必填。</small>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="userName">使用者名稱 <span class="req">*</span></label>
+        <input pInputText id="userName" formControlName="userName" />
+        @if (form.controls.userName.invalid && form.controls.userName.touched) {
+          <small class="err">使用者名稱為必填。</small>
+        }
+      </div>
+
+      <div class="form-field form-field--check">
+        <p-checkbox inputId="isActive" formControlName="isActive" [binary]="true" />
+        <label for="isActive">啟用</label>
+      </div>
+
+      @if (!isEdit()) {
+        <p class="hint"><i class="pi pi-info-circle"></i>&nbsp;新使用者的密碼將自動設為系統預設密碼。</p>
+      }
+    </div>
+
+    <div class="page-card">
+      <h3 class="section-title">角色</h3>
+      <div class="form-field">
+        <p-multiSelect
+          [options]="roles()"
+          formControlName="roleIds"
+          optionLabel="label"
+          optionValue="roleId"
+          placeholder="選擇角色（可複選）"
+          display="chip"
+          [filter]="true"
+          filterBy="label"
+          [maxSelectedLabels]="9999"
+          appendTo="body"
+          styleClass="w-full"
+        />
+      </div>
+    </div>
+  }
+</form>
